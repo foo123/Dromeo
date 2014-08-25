@@ -1,0 +1,28 @@
+Dromeo Module loaded succesfully
+Dromeo.VERSION =  0.5
+
+
+Route Handler Called
+Route:  http://abc.org/users/abcd12/23/soo
+Params:  {'foo': 'soo', 'group': 'users', 'id': '23', 'rest': None, 'user': 'abcd12'}
+Route Handler Called
+Route:  http://abc.org/users/abcd12/23/
+Params:  {'foo': 'moo', 'group': 'users', 'id': '23', 'rest': '/', 'user': 'abcd12'}
+Route Handler Called
+Route:  http://abc.org/users/abcd12/23
+Params:  {'foo': 'moo', 'group': 'users', 'id': '23', 'rest': None, 'user': 'abcd12'}
+
+
+Parse URI:  http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1#foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2
+{   'fragment': 'foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2',
+    'fragment_params': {'def': {'0': '1', '1': '2'}, 'foo': {'soo': '1'}},
+    'path': ':/abc.org/path/to/page/',
+    'query': 'abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1',
+    'query_params': {   'abcd': {'0': '1', '1': '2'},
+                        'foo': 'a string with spaces and +',
+                        'moo': {'soo': '1', 'too': '2'}},
+    'scheme': 'http'}
+
+
+Build URI
+http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1#foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2
