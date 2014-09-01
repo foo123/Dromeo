@@ -3,10 +3,14 @@ Dromeo
 
 A simple and flexible routing framework for PHP, Python, Node/JS
 
+
+[Dromeo.js](https://raw.githubusercontent.com/foo123/Dromeo/master/src/js/Dromeo.js)
+
+
 **see also:**  
 
 * [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP and Python
-* [ModelView](https://github.com/foo123/modelview.js) a light-weight and flexible MVVM framework based in jQuery
+* [ModelView](https://github.com/foo123/modelview.js) a light-weight and flexible MVVM framework based on jQuery
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a flexible Publish-Subscribe implementation for Node/JS, PHP and Python
 
 
