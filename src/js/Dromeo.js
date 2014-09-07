@@ -30,7 +30,7 @@
 
 }(  /* current root */          this, 
     /* module name */           "Dromeo",
-    /* module factory */        function( undef ) {
+    /* module factory */        function( exports, undef ) {
     
     "use strict";
     
