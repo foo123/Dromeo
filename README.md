@@ -10,7 +10,7 @@ A simple and flexible routing framework for PHP, Python, Node/JS
 **see also:**  
 
 * [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP and Python
-* [ModelView](https://github.com/foo123/modelview.js) a light-weight and flexible MVVM framework based on jQuery
+* [ModelView](https://github.com/foo123/modelview.js) a light-weight and flexible MVVM framework for JavaScript/HTML5
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a flexible Publish-Subscribe implementation for Node/JS, PHP and Python
 
 
