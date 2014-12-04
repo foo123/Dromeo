@@ -13,6 +13,7 @@ A simple and flexible routing framework for PHP, Python, Node/JS, ActionScript(T
 * [ModelView](https://github.com/foo123/modelview.js) a light-weight and flexible MVVM framework for JavaScript/HTML5
 * [ModelView MVC jQueryUI Widgets](https://github.com/foo123/modelview-widgets) plug-n-play, state-full, full-MVC widgets for jQueryUI using modelview.js (e.g calendars, datepickers, colorpickers, tables/grids, etc..) (in progress)
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a flexible Publish-Subscribe implementation for Node/JS, PHP, Python, ActionScript
+* [Xpresion](https://github.com/foo123/Xpresion) a flexible eXpression parser for Node/JS, PHP, Python, ActionScript
 
 
 **Example:**
