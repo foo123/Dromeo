@@ -219,3 +219,7 @@ var component = router.glue( params );
 var matched = router.route( url );
 
 ```
+
+**TODO**
+
+* add support for [RFC 6570 URI Template specification](http://tools.ietf.org/html/rfc6570)
