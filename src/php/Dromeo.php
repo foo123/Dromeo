@@ -150,8 +150,9 @@ class Dromeo
     private $_handlers = null;
     private $_routes = null;
     private $_fallback = false;
+    private $_prefix = '';
     
-    public function __construct( ) 
+    public function __construct( $route_prefix='' ) 
     {
         $this->_delims = array('{', '}', ':', '%');
         $this->_patterns = array( );
@@ -164,6 +165,7 @@ class Dromeo
         $this->_handlers = array( '*'=>array() );
         $this->_routes = array( );
         $this->_fallback = false;
+        $this->_prefix = $route_prefix;
     }
     
     public function __destruct()
@@ -177,6 +179,7 @@ class Dromeo
         $this->_patterns = null;
         $this->_routes = null;
         $this->_fallback = null;
+        $this->_prefix = null;
         foreach ( $this->_handlers as $h ) 
         {
             foreach ( $h as $k=>$r ) 
@@ -318,16 +321,16 @@ class Dromeo
         {
             if ( is_array($args[ 0 ]) && isset($args[ 0 ][ 0 ]) && is_array($args[ 0 ][ 0 ]) )
             {
-                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $args[0]);
+                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $args[0]);
             }
             else
             {
-                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, array($args[0]));
+                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, array($args[0]));
             }
         }
         else
         {
-            self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $args);
+            self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $args);
         }
         return $this;
     }
@@ -340,16 +343,16 @@ class Dromeo
         {
             if ( is_array($args[ 0 ]) && isset($args[ 0 ][ 0 ]) && is_array($args[ 0 ][ 0 ]) )
             {
-                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $args[0], true);
+                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $args[0], true);
             }
             else
             {
-                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, array($args[0]), true);
+                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, array($args[0]), true);
             }
         }
         else
         {
-            self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $args, true);
+            self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $args, true);
         }
         return $this;
     }
@@ -365,6 +368,7 @@ class Dromeo
                 $route = $route['route'];
                 if ( $route && isset($this->_handlers[$m]) )
                 {
+                    $route = $this->_prefix . $route; 
                     $h =& $this->_handlers[$m];
                     if ( isset($h[$route]) )
                     {
@@ -389,6 +393,7 @@ class Dromeo
             }
             elseif ( is_string($route) && strlen($route) )
             {
+                $route = $this->_prefix . $route; 
                 foreach($this->_handlers as $m=>&$h)
                 {
                     if ( isset($h[$route]) )
@@ -494,7 +499,7 @@ class Dromeo
         unset( $handlers[$route] );
     }
 
-    private static function addRoute( &$handlers, &$routes, &$delims, &$patterns, $route, $oneOff=false)
+    private static function addRoute( &$handlers, &$routes, &$delims, &$patterns, $prefix, $route, $oneOff=false)
     {
         if ( is_array($route) && isset($route['route']) && is_string($route['route']) && strlen($route['route']) && 
             isset($route['handler']) && is_callable($route['handler']) )
@@ -503,7 +508,7 @@ class Dromeo
             $handler = $route['handler'];
             $defaults = isset($route['defaults']) ? (array)$route['defaults'] : array();
             $method = isset($route['method']) ? strtolower($route['method']) : '*';
-            $route = $route['route'];
+            $route = $prefix . $route['route'];
             
             if ( !isset($handlers[ $method ]) ) $handlers[ $method ] = array( );
             $h =& $handlers[ $method ];
@@ -531,11 +536,11 @@ class Dromeo
         }
     }
     
-    private static function addRoutes( &$handlers, &$routes, &$delims, &$patterns, $args, $oneOff=false )
+    private static function addRoutes( &$handlers, &$routes, &$delims, &$patterns, $prefix, $args, $oneOff=false )
     {
         foreach ((array)$args as $route)
         {
-            self::addRoute($handlers, $routes, $delims, $patterns, $route, $oneOff);
+            self::addRoute($handlers, $routes, $delims, $patterns, $prefix, $route, $oneOff);
         }
     }
 

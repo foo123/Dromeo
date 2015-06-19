@@ -163,7 +163,7 @@ http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&mo
 // -- instance methods --
 // --------------------------------------------------------
 
-var router = new Dromeo( );
+var router = new Dromeo( route_prefix='' );
 
 // set/define delimiters used in route-patterns, see examples
 router.defineDelimiters( ['{', '}', ':', '%'] );
@@ -192,14 +192,14 @@ router.fallback( [handlerFunc | false | null] );
 // set a handler for routePattern, with optional defaults object (oneOff if "one" used)
 router.[on|one]( routeObj );
 // route object configuration
-/*
-{
-    route: '..', // the route pattern matched, needed
-    method: 'post', // the method (case-insensitive), default is '*', i.e any
-    handler: function(params){/*..*/}, // the route handler to be called, needed
-    defaults: {/*..*/} // any default and/or extra parameters to be used, if missing, and passed to handler, default is {}
-}
-*/
+//
+//{
+//    route: '..', // the route pattern matched, needed
+//    method: 'post', // the method (case-insensitive), default is '*', i.e any
+//    handler: function(params){/*..*/}, // the route handler to be called, needed
+//    defaults: {/*..*/} // any default and/or extra parameters to be used, if missing, and passed to handler, default is {}
+//}
+//
 
 // set handler(s) for multiple routePattern(s) (oneOff if "one" used)
 

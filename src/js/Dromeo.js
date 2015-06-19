@@ -498,7 +498,7 @@ var __version__ = "0.6",
         delete handlers[ route ];
     },
 
-    addRoute = function( handlers, routes, delims, patterns, route, oneOff ) {
+    addRoute = function( handlers, routes, delims, patterns, prefix, route, oneOff ) {
         if ( route && is_string(route.route) && route.route.length && 
             route.handler && is_callable(route.handler) )
         {
@@ -507,7 +507,7 @@ var __version__ = "0.6",
                 defaults = route.defaults || {},
                 method = route.method ? route.method.toLowerCase() : '*',
                 h;
-            route = route.route;
+            route = prefix + route.route;
             
             if ( !handlers[HAS]( method ) ) handlers[method] = {};
             h = handlers[method];
@@ -525,13 +525,13 @@ var __version__ = "0.6",
         }
     },
 
-    addRoutes = function( handlers, routes, delims, patterns, args, oneOff ) {
+    addRoutes = function( handlers, routes, delims, patterns, prefix, args, oneOff ) {
         var route, i, defaults, namespace;
         oneOff = !!oneOff;
         for (i=0; i<args.length; i++)
         {
             route = args[i];
-            addRoute(handlers, routes, delims, patterns, route, oneOff);
+            addRoute(handlers, routes, delims, patterns, prefix, route, oneOff);
         }
     }
 ;
@@ -557,7 +557,7 @@ function Route( route, pattern, captures, method, namespace )
     };
 }
 
-var Dromeo = function( ) {
+var Dromeo = function( route_prefix ) {
     var self = this;
     self._delims = ['{', '}', ':', '%'];
     self._patterns = { },
@@ -570,6 +570,7 @@ var Dromeo = function( ) {
     self._handlers = { '*':{} };
     self._routes = [ ];
     self._fallback = false;
+    self._prefix = route_prefix || '';
 };
 Dromeo.VERSION = __version__;
 Dromeo.Route = Route;
@@ -581,6 +582,7 @@ Dromeo[PROTO] = {
     _handlers: null,
     _routes: null,
     _fallback: false,
+    _prefix: '',
     
     dispose: function( ) {
         var self = this, r, m, h;
@@ -588,6 +590,7 @@ Dromeo[PROTO] = {
         self._patterns = null;
         self._routes = null;
         self._fallback = null;
+        self._prefix = null;
         for ( m in self._handlers ) 
         {
             if ( self._handlers[HAS](m) )
@@ -741,16 +744,16 @@ Dromeo[PROTO] = {
         {
             if ( is_array(args[ 0 ]) )
             {
-                addRoutes( self._handlers, self._routes, self._delims, self._patterns, args[ 0 ] );
+                addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, args[ 0 ] );
             }
             else
             {
-                addRoutes( self._handlers, self._routes, self._delims, self._patterns, [args[ 0 ]] );
+                addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, [args[ 0 ]] );
             }
         }
         else
         {
-            addRoutes( self._handlers, self._routes, self._delims, self._patterns, args );
+            addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, args );
         }
         return self;
     },
@@ -764,16 +767,16 @@ Dromeo[PROTO] = {
         {
             if ( is_array(args[ 0 ]) )
             {
-                addRoutes( self._handlers, self._routes, self._delims, self._patterns, args[ 0 ], true );
+                addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, args[ 0 ], true );
             }
             else
             {
-                addRoutes( self._handlers, self._routes, self._delims, self._patterns, [args[ 0 ]], true );
+                addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, [args[ 0 ]], true );
             }
         }
         else
         {
-            addRoutes( self._handlers, self._routes, self._delims, self._patterns, args, true );
+            addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, args, true );
         }
         return self;
     },
@@ -782,6 +785,7 @@ Dromeo[PROTO] = {
         var self = this, 
             routes = self._routes, 
             handlers = self._handlers,
+            prefix = self._prefix, 
             i, r, m, h, l;
         
         if ( route )
@@ -793,6 +797,7 @@ Dromeo[PROTO] = {
                 route = route.route;
                 if ( route && handlers[HAS](m) )
                 {
+                    route = prefix + route;
                     h = handlers[m];
                     if ( h[HAS](route) )
                     {
@@ -816,6 +821,7 @@ Dromeo[PROTO] = {
             }
             else if ( is_string(route) && route.length )
             {
+                route = prefix + route;
                 for (m in handlers)
                 {
                     if ( !handlers[HAS](m) ) continue;

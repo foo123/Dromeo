@@ -402,13 +402,13 @@ def makeRoute( delims, patterns, route, method=None ):
     return Route( route, re.compile('^' + pattern + '$'), captures, method )
 
 
-def addRoute( handlers, routes, delims, patterns, route, oneOff=False ):
+def addRoute( handlers, routes, delims, patterns, prefix, route, oneOff=False ):
     if route and isinstance(route, dict) and 'route' in route and len(route['route'])>0 and 'handler' in route and callable(route['handler']):
         oneOff = (True == oneOff)
         handler = route['handler']
         defaults = dict(route['defaults']) if 'defaults' in route else {}
         method = str(route['method']).lower() if 'method' in route else '*'
-        route = route['route']
+        route = prefix + route['route']
         
         if method not in handlers: handlers[method] = {}
         h = handlers[method]
@@ -421,9 +421,9 @@ def addRoute( handlers, routes, delims, patterns, route, oneOff=False ):
             routes.append( h[ route ] )
 
 
-def addRoutes( handlers, routes, delims, patterns, args, oneOff=False ):
+def addRoutes( handlers, routes, delims, patterns, prefix, args, oneOff=False ):
     for route in args:
-        addRoute(handlers, routes, delims, patterns, route, oneOff)
+        addRoute(handlers, routes, delims, patterns, prefix, route, oneOff)
 
 
 def clearRoute( handlers, routes, route, method ):
@@ -446,7 +446,7 @@ class Dromeo:
     
     Route = Route
     
-    def __init__( self ):
+    def __init__( self, prefix='' ):
         self._delims = ['{', '}', ':', '%']
         self._patterns = { }
         self.definePattern( 'ALPHA',   '[a-zA-Z\\-_]+' )
@@ -458,6 +458,7 @@ class Dromeo:
         self._handlers = { '*':{} }
         self._routes = [ ]
         self._fallback = False
+        self._prefix = str(prefix)
     
     
     def __del__(self):
@@ -468,6 +469,7 @@ class Dromeo:
         self._patterns = None
         self._routes = None
         self._fallback = None
+        self._prefix = None
         for m in self._handlers: 
             h = self._handlers[m]
             for r in h: 
@@ -570,11 +572,11 @@ class Dromeo:
         
         if 1 == args_len: 
             if isinstance(args[0], (list, tuple)):
-                addRoutes(self._handlers, self._routes, self._delims, self._patterns, args[0])
+                addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, args[0])
             else:
-                addRoutes(self._handlers, self._routes, self._delims, self._patterns, [args[0]])
+                addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, [args[0]])
         else:
-            addRoutes(self._handlers, self._routes, self._delims, self._patterns, args)
+            addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, args)
         
         return self
     
@@ -584,11 +586,11 @@ class Dromeo:
         
         if 1 == args_len: 
             if isinstance(args[0], (list, tuple)):
-                addRoutes(self._handlers, self._routes, self._delims, self._patterns, args[0], True)
+                addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, args[0], True)
             else:
-                addRoutes(self._handlers, self._routes, self._delims, self._patterns, [args[0]], True)
+                addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, [args[0]], True)
         else:
-            addRoutes(self._handlers, self._routes, self._delims, self._patterns, args, True)
+            addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, args, True)
         
         return self
     
@@ -596,6 +598,7 @@ class Dromeo:
     def off( self, route, handler=None ):
         routes = self._routes 
         handlers = self._handlers
+        prefix = self._prefix
         
         if route:
             if isinstance(route, dict):
@@ -603,6 +606,7 @@ class Dromeo:
                 handler = route['handler'] if 'handler' in route else handler
                 route = route['route'] if 'route' in route else None
                 if route and (m in handlers):
+                    route = prefix + route
                     h = handlers[m]
                     if route in h:
                         if handler and callable(handler):
@@ -619,6 +623,7 @@ class Dromeo:
                             clearRoute( h, routes, route, m )
             
             elif isinstance(route, str) and len(route):
+                route = prefix + route
                 for m in handlers:
                     h = handlers[m]
                     if route in h:
