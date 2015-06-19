@@ -2,14 +2,14 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.5
+#   @version: 0.6
 #
 #   https://github.com/foo123/Dromeo
 #
 ##
 
 # needed imports
-import re
+import re, copy
 #import pprint
 
 # http://www.php2python.com/wiki/function.urlencode/
@@ -170,17 +170,24 @@ class _G:
 
 class Route:
     
-    def __init__( self, route, pattern, captures ):
+    def __init__( self, route, pattern, captures, method="*", namespace=None ):
         self.handlers = [ ]
         self.route = route
         self.pattern = pattern
         self.captures = captures
+        self.method = str(method).lower() if method else "*"
+        self.namespace = namespace
     
+    def __del__(self):
+        self.dispose()
+        
     def dispose( self ):
         self.handlers = None
         self.route = None
         self.pattern = None
         self.captures = None
+        self.method = None
+        self.namespace = None
         return self
 
 
@@ -346,7 +353,7 @@ def makePattern( delims, patterns, pattern ):
         return ['(' + ''.join(p) + ')', numGroups+1]
 
 
-def makeRoute( delims, patterns, route ):
+def makeRoute( delims, patterns, route, method=None ):
     global _G
     
     parts = split( route, delims[ 0 ], delims[ 1 ] )
@@ -392,30 +399,41 @@ def makeRoute( delims, patterns, route ):
             pattern += re.escape( part )
             isPattern = True
     
-    return Route( route, re.compile('^' + pattern + '$'), captures )
+    return Route( route, re.compile('^' + pattern + '$'), captures, method )
 
 
-def addRoute( handlers, routes, delims, patterns, route, handler, defaults, oneOff=False ):
-    if route and len(route)>0 and handler and callable(handler):
+def addRoute( handlers, routes, delims, patterns, route, oneOff=False ):
+    if route and isinstance(route, dict) and 'route' in route and len(route['route'])>0 and 'handler' in route and callable(route['handler']):
         oneOff = (True == oneOff)
-        defaults = {} if not defaults else defaults
+        handler = route['handler']
+        defaults = dict(route['defaults']) if 'defaults' in route else {}
+        method = str(route['method']).lower() if 'method' in route else '*'
+        route = route['route']
         
-        if route in handlers:
-            handlers[ route ].handlers.append( [handler, defaults, oneOff] )
+        if method not in handlers: handlers[method] = {}
+        h = handlers[method]
+        
+        if route in h:
+            h[ route ].handlers.append( [handler, defaults, oneOff, 0] )
         else:
-            handlers[ route ] = makeRoute( delims, patterns, route )
-            handlers[ route ].handlers.append( [handler, defaults, oneOff] )
-            routes.append( handlers[ route ] )
+            h[ route ] = makeRoute( delims, patterns, route, method )
+            h[ route ].handlers.append( [handler, defaults, oneOff, 0] )
+            routes.append( h[ route ] )
 
 
-def clearRoute( handlers, routes, route ):
-    del handlers[ route ]
+def addRoutes( handlers, routes, delims, patterns, args, oneOff=False ):
+    for route in args:
+        addRoute(handlers, routes, delims, patterns, route, oneOff)
+
+
+def clearRoute( handlers, routes, route, method ):
     l = len(routes)-1
     while l >= 0:
-        if route == routes[ l ].route:
+        if route == routes[ l ].route and method == routes[ l ].method:
             del routes[l : l+1]
-            break
         l -= 1
+    handlers[ route ].dispose( )
+    del handlers[ route ]
 
         
 class Dromeo:
@@ -424,7 +442,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.5"
+    VERSION = "0.6"
     
     Route = Route
     
@@ -437,22 +455,29 @@ class Dromeo:
         self.definePattern( 'QUERY',   '\\?[^?#]+' )
         self.definePattern( 'FRAGM',   '#[^?#]+' )
         self.definePattern( 'ALL',     '.+' )
-        self._handlers = { }
+        self._handlers = { '*':{} }
         self._routes = [ ]
         self._fallback = False
     
     
+    def __del__(self):
+        self.dispose()
+        
     def dispose( self ):
         self._delims = None
         self._patterns = None
         self._routes = None
         self._fallback = None
-        for r in self._handlers: self._handlers[r].dispose( )
+        for m in self._handlers: 
+            h = self._handlers[m]
+            for r in h: 
+                h[r].dispose( )
+                h[r] = None
         self._handlers = None
         return self
         
     def reset( self ):
-        self._handlers = { }
+        self._handlers = { '*':{} }
         self._routes = [ ]
         self._fallback = False
         return self
@@ -481,7 +506,19 @@ class Dromeo:
     #    print('Routes: ', pprint.pformat(self._routes, 4))
     #    print('Fallback: ', pprint.pformat(self._fallback, 4))
     
-    
+    # build/glue together a uri component from a params object
+    def glue( self, params ):
+        component = '';
+        # http://php.net/manual/en/function.http-build-query.php (for '+' sign convention)
+        if params:  component += http_build_query( params, '&', True )
+        return component
+        
+    # unglue/extract params object from uri component
+    def unglue( self, s ):
+        if s: PARAMS = parse_str( s )
+        else: PARAMS = { }
+        return PARAMS
+
     # parse and extract uri components and optional query/fragment params
     def parse( self, s, query_p='query_params', fragment_p='fragment_params' ):
         COMPONENTS = { }
@@ -503,27 +540,12 @@ class Dromeo:
         return COMPONENTS
 
     
-    # unglue/extract params object from uri component
-    def unglue( self, s ):
-        if s: PARAMS = parse_str( s )
-        else: PARAMS = { }
-        return PARAMS
-
-    
     # build a url from baseUrl plus query/hash params
     def build( self, baseUrl, query=None, hash=None, q='?', h='#' ):
         url = '' + baseUrl
         if query:  url += q + self.glue( query )
         if hash:  url += h + self.glue( hash )
         return url
-        
-    
-    # build/glue together a uri component from a params object
-    def glue( self, params ):
-        component = '';
-        # http://php.net/manual/en/function.http-build-query.php (for '+' sign convention)
-        if params:  component += http_build_query( params, '&', True )
-        return component
         
     
     def redirect( self, url, httpHandler, statusCode=302, statusMsg=True ):
@@ -546,16 +568,13 @@ class Dromeo:
     def on( self, *args ):
         args_len = len(args)
         
-        if 2 <= args_len:
-            route = args
-            defaults = route[2] if len(route)>2 else None
-            addRoute(self._handlers, self._routes, self._delims, self._patterns, route[0], route[1], defaults)
-        
-        elif 1 == args_len and isinstance(args[0], (list, tuple)):
-            for route in args[0]:
-                if len(route) >= 2:
-                    defaults = route[2] if len(route)>2 else None
-                    addRoute(self._handlers, self._routes, self._delims, self._patterns, route[0], route[1], defaults)
+        if 1 == args_len: 
+            if isinstance(args[0], (list, tuple)):
+                addRoutes(self._handlers, self._routes, self._delims, self._patterns, args[0])
+            else:
+                addRoutes(self._handlers, self._routes, self._delims, self._patterns, [args[0]])
+        else:
+            addRoutes(self._handlers, self._routes, self._delims, self._patterns, args)
         
         return self
     
@@ -563,16 +582,13 @@ class Dromeo:
     def one( self, *args ):
         args_len = len(args)
         
-        if 2 <= args_len:
-            route = args
-            defaults = route[2] if len(route)>2 else None
-            addRoute(self._handlers, self._routes, self._delims, self._patterns, route[0], route[1], defaults, True)
-        
-        elif 1 == args_len and isinstance(args[0], (list, tuple)):
-            for route in args[0]:
-                if len(route) >= 2:
-                    defaults = route[2] if len(route)>2 else None
-                    addRoute(self._handlers, self._routes, self._delims, self._patterns, route[0], route[1], defaults, True)
+        if 1 == args_len: 
+            if isinstance(args[0], (list, tuple)):
+                addRoutes(self._handlers, self._routes, self._delims, self._patterns, args[0], True)
+            else:
+                addRoutes(self._handlers, self._routes, self._delims, self._patterns, [args[0]], True)
+        else:
+            addRoutes(self._handlers, self._routes, self._delims, self._patterns, args, True)
         
         return self
     
@@ -581,19 +597,43 @@ class Dromeo:
         routes = self._routes 
         handlers = self._handlers
         
-        if route and (route in handlers):
-            if handler and callable(handler):
-                r = handlers[ route ]
-                l = len(r.handlers)-1
-                while l>=0:
-                    if handler == r.handlers[ l ][0]:
-                        # http://www.php2python.com/wiki/function.array-splice/
-                        del r.handlers[l : l+1]
-                    l -= 1
-                if not len(r.handlers):
-                    clearRoute( handlers, routes, route )
-            else:
-                clearRoute( handlers, routes, route )
+        if route:
+            if isinstance(route, dict):
+                m = str(route['method']).lower() if 'method' in route else '*'
+                handler = route['handler'] if 'handler' in route else handler
+                route = route['route'] if 'route' in route else None
+                if route and (m in handlers):
+                    h = handlers[m]
+                    if route in h:
+                        if handler and callable(handler):
+                            r = h[ route ]
+                            l = len(r.handlers)-1
+                            while l>=0:
+                                if handler == r.handlers[ l ][0]:
+                                    # http://www.php2python.com/wiki/function.array-splice/
+                                    del r.handlers[l : l+1]
+                                l -= 1
+                            if not len(r.handlers):
+                                clearRoute( h, routes, route, m )
+                        else:
+                            clearRoute( h, routes, route, m )
+            
+            elif isinstance(route, str) and len(route):
+                for m in handlers:
+                    h = handlers[m]
+                    if route in h:
+                        if handler and callable(handler):
+                            r = handlers[ route ]
+                            l = len(r.handlers)-1
+                            while l>=0:
+                                if handler == r.handlers[ l ][0]:
+                                    # http://www.php2python.com/wiki/function.array-splice/
+                                    del r.handlers[l : l+1]
+                                l -= 1
+                            if not len(r.handlers):
+                                clearRoute( h, routes, route, m )
+                        else:
+                            clearRoute( h, routes, route, m )
         
         return self
         
@@ -604,41 +644,52 @@ class Dromeo:
         return self
     
     
-    def route( self, r=None ):
+    def route( self, r=None, method="*" ):
         if r:
+            method = str(method).lower() if method else "*"
+            
             for route in self._routes:
+                if method != route.method and '*' != route.method: continue
                 m = route.pattern.match( r )
                 if not m: continue
 
                 # copy handlers avoid mutation during calls
                 handlers = route.handlers[ : ]
                 
-                # remove oneOffs
-                oneOffs = []
-                for h in range(len(handlers)):
-                    if handlers[h][2]: oneOffs.append( h )
-                    
-                lh = len(oneOffs)-1
-                while lh >= 0: 
-                    pos = oneOffs.pop()
-                    del route.handlers[pos : pos+1]
-                    l -= 1
-                
                 # make calls
                 captures = route.captures.items( )
                 for h in range(len(handlers)):
                     handler = handlers[ h ]
-                    params = { }
+                    # handler is oneOff and already called
+                    if handler[2] and handler[3]: continue
+                    
+                    defaults = handler[1]
+                    params = {
+                        'route': r,
+                        'fallback': False,
+                        'data': copy.deepcopy(defaults)
+                    }
                     for v,g in captures:
-                        if m.group( g ):  params[ v ] = m.group( g )
-                        elif v in handler[1]:  params[ v ] = handler[1][ v ]
-                        else: params[ v ] = None
-                    handler[0]( r, params )
+                        if m.group( g ): params['data'][ v ] = m.group( g )
+                        #elif v in defaults: params['data'][ v ] = defaults[ v ]
+                        elif v not in params['data']: params['data'][ v ] = None
+                    
+                    handler[3] = 1 # handler called
+                    handler[0]( params )
+                
+                # remove called oneOffs
+                lh = len(route.handlers)-1
+                while lh >= 0: 
+                    # handler is oneOff and called once
+                    handler = route.handlers[lh]
+                    if handler[2] and handler[3]: del route.handlers[lh : lh+1]
+                    lh -= 1
+                
                 
                 return True
         
         if self._fallback:  
-            self._fallback( r, False )
+            self._fallback( {'route': r, 'fallback': True, 'data': None} )
             return False
         return False
 

@@ -30,20 +30,20 @@ var path = require('path'),
     echo = console.log
 ;
 
-function routeHandler( route, params )
+function routeHandler( params )
 {
     echo('Route Handler Called');
-    echo('Route: ' + route);
+    echo('Route: ' + params['route']);
     echo('Params: ');
-    echo( params );
+    echo( params['data'] );
 }
 
-function fallbackHandler( route, params )
+function fallbackHandler( params )
 {
     echo('Fallback Handler Called');
-    echo('Route: ' + route);
+    echo('Route: ' + params['route']);
     echo('Params: ');
-    echo( params );
+    echo( params['data'] );
 }
 
 echo( 'Dromeo.VERSION = ' + Dromeo.VERSION );
@@ -53,18 +53,20 @@ var dromeo = new Dromeo( );
 
 dromeo
     
-    .on([
+    .on(
       
-      [
+      {
       // route pattern
-      'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      route: 'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      // method, default is '*' all
+      //method: '*',
       // route handler
-      routeHandler, 
+      handler: routeHandler, 
       // default params (if any)
-      {'foo':'moo'}
-      ]
+      defaults: {'foo':'moo','extra-flag','extra'}
+      }
     
-    ])
+    )
     
     .fallback( fallbackHandler )
 ;
@@ -92,15 +94,16 @@ echo( dromeo.build(uri, {
 
 **output:**
 ```text
-Dromeo.VERSION = 0.5
+Dromeo.VERSION = 0.6
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo
 Params: 
-{ group: 'users',
+{ foo: 'soo',
+  extra: 'extra',
+  group: 'users',
   user: 'abcd12',
   id: '23',
-  foo: 'soo',
   rest: null }
 
 Parse URI: http://abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1
@@ -187,17 +190,35 @@ router.reset( );
 router.fallback( [handlerFunc | false | null] );
 
 // set a handler for routePattern, with optional defaults object (oneOff if "one" used)
-router.[on|one]( routePattern, handlerFunc [, defaultsObj=null] );
+router.[on|one]( routeObj );
+// route object configuration
+/*
+{
+    route: '..', // the route pattern matched, needed
+    method: 'post', // the method (case-insensitive), default is '*', i.e any
+    handler: function(params){/*..*/}, // the route handler to be called, needed
+    defaults: {/*..*/} // any default and/or extra parameters to be used, if missing, and passed to handler, default is {}
+}
+*/
 
 // set handler(s) for multiple routePattern(s) (oneOff if "one" used)
+
+// using array of objects
 router.[on|one]([ 
-    [ routePattern1, handlerFunc1 [, defaultsObj1] ],
-    [ routePattern2, handlerFunc2 [, defaultsObj2] ]
-    /* etc . */
+    routeObj1,
+    routeObj2
+    /* etc .. */
 ]);
 
+// using variable arguments
+router.[on|one]( 
+    routeObj1,
+    routeObj2
+    /* etc .. */
+);
+
 // remove the routePattern (optionally if handlerFunc matches as well)
-router.off( routePattern [, handlerFunc=null] );
+router.off( routePattern | routeObj [, handlerFunc=null] );
 
 // redirect to given url (with optional statusCode and statusMsg)
 // in Node, the **response object** from node.http should be passed as well
@@ -215,8 +236,10 @@ var url = router.build( baseUrl, query=null, hash=null );
 // build/glue together a uri component from a params object (using RFC3986)
 var component = router.glue( params );
 
-// match and route a given url, returns true if matched a routePattern else false
-var matched = router.route( url );
+// match and route a given url 
+// (with optional method, only routes which match the method will be used), 
+// returns true if matched any routePattern else false
+var matched = router.route( url, method="*" );
 
 ```
 

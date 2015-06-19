@@ -1,18 +1,18 @@
 <?php
 require(dirname(dirname(__FILE__)).'/src/php/Dromeo.php');
 
-function routeHandler( $route, $params )
+function routeHandler( $params )
 {
     echo 'Route Handler Called' . PHP_EOL;
-    echo 'Route: ' . $route . PHP_EOL;
-    echo 'Params: ' . print_r( $params, true ) . PHP_EOL;
+    echo 'Route: ' . $params['route'] . PHP_EOL;
+    echo 'Params: ' . print_r( $params['data'], true ) . PHP_EOL;
 }
 
-function fallbackHandler( $route, $params )
+function fallbackHandler( $params )
 {
     echo 'Fallback Handler Called' . PHP_EOL;
-    echo 'Route: ' . $route . PHP_EOL;
-    echo 'Params: ' . print_r( $params, true ) . PHP_EOL;
+    echo 'Route: ' . $params['route'] . PHP_EOL;
+    echo 'Params: ' . print_r( $params['data'], true ) . PHP_EOL;
 }
 
 echo( 'Dromeo.VERSION = ' . Dromeo::VERSION . PHP_EOL );
@@ -23,8 +23,9 @@ $dromeo = new Dromeo( );
 /*
 $dromeo->debug( );
 $dromeo->on(array(
-      array('http://abc.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', 'routeHandler'),
-      array('http://def.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', 'routeHandler')
+    // same as using 'method'=> '*'
+      array('route'=>'http://abc.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', 'handler'=>'routeHandler'),
+      array('route'=>'http://def.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', 'handler'=>'routeHandler')
     ));
 $dromeo->debug( );
 $dromeo->off( 'http://abc.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}' );
@@ -35,11 +36,14 @@ $dromeo->debug( );
 
 $dromeo
     
-    ->on(array(
-      
-      array('http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 'routeHandler', array('foo'=>'moo'))
-    
-    ))
+    ->on(
+      array('route'=>'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      // same as using
+      //'method'=>'*',
+      'handler'=>'routeHandler', 
+      'defaults'=>array('foo'=>'moo','extra'=>'extra')
+      )
+    )
     
     ->fallback( 'fallbackHandler' )
 ;

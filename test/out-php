@@ -1,13 +1,14 @@
-Dromeo.VERSION = 0.5
+Dromeo.VERSION = 0.6
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo
 Params: Array
 (
+    [foo] => soo
+    [extra] => extra
     [group] => users
     [user] => abcd12
     [id] => 23
-    [foo] => soo
     [rest] => 
 )
 
@@ -15,10 +16,11 @@ Route Handler Called
 Route: http://abc.org/users/abcd12/23/
 Params: Array
 (
+    [foo] => moo
+    [extra] => extra
     [group] => users
     [user] => abcd12
     [id] => 23
-    [foo] => moo
     [rest] => /
 )
 
@@ -26,10 +28,11 @@ Route Handler Called
 Route: http://abc.org/users/abcd12/23
 Params: Array
 (
+    [foo] => moo
+    [extra] => extra
     [group] => users
     [user] => abcd12
     [id] => 23
-    [foo] => moo
     [rest] => 
 )
 

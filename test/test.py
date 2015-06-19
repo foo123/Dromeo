@@ -3,18 +3,20 @@
 import os, sys
 import pprint
 
-# import the Dromeo.py engine (as a) module, probably you will want to place this in another dir/package
-import imp
-DromeoModulePath = os.path.join(os.path.dirname(__file__), '../src/python/')
-try:
-    DromeoFp, DromeoPath, DromeoDesc  = imp.find_module('Dromeo', [DromeoModulePath])
-    Dromeo = getattr( imp.load_module('Dromeo', DromeoFp, DromeoPath, DromeoDesc), 'Dromeo' )
-except ImportError as exc:
-    Dromeo = None
-    sys.stderr.write("Error: failed to import module ({})".format(exc))
-finally:
-    if DromeoFp: DromeoFp.close()
+def import_module(name, path):
+    import imp
+    try:
+        mod_fp, mod_path, mod_desc  = imp.find_module(name, [path])
+        mod = getattr( imp.load_module(name, mod_fp, mod_path, mod_desc), name )
+    except ImportError as exc:
+        mod = None
+        sys.stderr.write("Error: failed to import module ({})".format(exc))
+    finally:
+        if mod_fp: mod_fp.close()
+    return mod
 
+# import the Dromeo.py engine (as a) module, probably you will want to place this in another dir/package
+Dromeo = import_module('Dromeo', os.path.join(os.path.dirname(__file__), '../src/python/'))
 if not Dromeo:
     print ('Could not load the Dromeo Module')
     sys.exit(1)
@@ -22,15 +24,15 @@ else:
     print ('Dromeo Module loaded succesfully')
 
 
-def routeHandler( route, params ):
+def routeHandler( params ):
     print('Route Handler Called')
-    print('Route: ', route)
-    print('Params: ', pprint.pformat(params, 4))
+    print('Route: ', params['route'])
+    print('Params: ', pprint.pformat(params['data'], 4))
 
 def fallbackHandler( route, params ):
     print('Fallabck Handler Called')
-    print('Route: ', route)
-    print('Params: ', pprint.pformat(params, 4))
+    print('Route: ', params['route'])
+    print('Params: ', pprint.pformat(params['data'], 4))
 
 print( 'Dromeo.VERSION = ', Dromeo.VERSION )
 print( "\n" );
@@ -39,8 +41,9 @@ dromeo = Dromeo( )
 
 #dromeo.debug( )
 #dromeo.on([
-#      ['http://abc.org/{%ALPHA%:group}{/%LANUM%:?user(1)}', routeHandler],
-#      ['http://def.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', routeHandler]
+#      # same as using 'method': '*'
+#      {'route':'http://abc.org/{%ALPHA%:group}{/%LANUM%:?user(1)}', 'handler':routeHandler},
+#      {'route':'http://def.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', 'handler':routeHandler}
 #    ])
 #dromeo.debug( )
 #dromeo.off( 'http://abc.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}' )
@@ -48,11 +51,15 @@ dromeo = Dromeo( )
 #dromeo.reset( )
 #dromeo.debug( )
 
-dromeo.on([
-      
-      ['http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', routeHandler, {'foo':'moo'}]
-    
-    ]).fallback( 
+dromeo.on(
+      {
+      'route':'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      # same as using
+      #'method': '*',
+      'handler':routeHandler, 
+      'defaults':{'foo':'moo','extra':'extra'}
+      }
+    ).fallback( 
         fallbackHandler 
     )
 

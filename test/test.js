@@ -3,20 +3,20 @@ var path = require('path'),
     echo = console.log
 ;
 
-function routeHandler( route, params )
+function routeHandler( params )
 {
     echo('Route Handler Called');
-    echo('Route: ' + route);
+    echo('Route: ' + params.route);
     echo('Params: ');
-    echo( params );
+    echo( params.data );
 }
 
-function fallbackHandler( route, params )
+function fallbackHandler( params )
 {
     echo('Fallback Handler Called');
-    echo('Route: ' + route);
+    echo('Route: ' + params.route);
     echo('Params: ');
-    echo( params );
+    echo( params.data );
 }
 
 echo( 'Dromeo.VERSION = ' + Dromeo.VERSION );
@@ -26,9 +26,10 @@ var dromeo = new Dromeo( );
 /*
 dromeo.debug( );
 dromeo.on([
-      ['http://abc.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', routeHandler],
-      ['http://def.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', routeHandler]
-    ]);
+    // same as using method: '*'
+    {route:'http://abc.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', handler:routeHandler},
+    {route:'http://def.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}', handler:routeHandler}
+]);
 dromeo.debug( );
 dromeo.off( 'http://abc.org/{%ALPHA%:group}{/%ALNUM%:?user(1)}' );
 dromeo.debug( );
@@ -37,12 +38,15 @@ dromeo.debug( );
 */
 dromeo
     
-    .on([
-      
-      ['http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', routeHandler, {'foo':'moo'}]
-    
-    ])
-    
+    .on(
+      {
+      route:'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}',
+      // same as using
+      //method: '*',
+      handler: routeHandler, 
+      defaults: {'foo':'moo','extra':'extra'}
+      }
+    )
     .fallback( fallbackHandler )
 ;
 

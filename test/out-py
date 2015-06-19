@@ -1,16 +1,31 @@
 Dromeo Module loaded succesfully
-Dromeo.VERSION =  0.5
+Dromeo.VERSION =  0.6
 
 
 Route Handler Called
 Route:  http://abc.org/users/abcd12/23/soo
-Params:  {'foo': 'soo', 'group': 'users', 'id': '23', 'rest': None, 'user': 'abcd12'}
+Params:  {   'extra': 'extra',
+    'foo': 'soo',
+    'group': 'users',
+    'id': '23',
+    'rest': None,
+    'user': 'abcd12'}
 Route Handler Called
 Route:  http://abc.org/users/abcd12/23/
-Params:  {'foo': 'moo', 'group': 'users', 'id': '23', 'rest': '/', 'user': 'abcd12'}
+Params:  {   'extra': 'extra',
+    'foo': 'moo',
+    'group': 'users',
+    'id': '23',
+    'rest': '/',
+    'user': 'abcd12'}
 Route Handler Called
 Route:  http://abc.org/users/abcd12/23
-Params:  {'foo': 'moo', 'group': 'users', 'id': '23', 'rest': None, 'user': 'abcd12'}
+Params:  {   'extra': 'extra',
+    'foo': 'moo',
+    'group': 'users',
+    'id': '23',
+    'rest': None,
+    'user': 'abcd12'}
 
 
 Parse URI:  http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1#foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2
