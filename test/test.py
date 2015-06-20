@@ -51,7 +51,9 @@ dromeo = Dromeo( )
 #dromeo.reset( )
 #dromeo.debug( )
 
-dromeo.on(
+dromeo.fallback( 
+        fallbackHandler 
+    ).on(
       {
       'route':'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
       # same as using
@@ -59,13 +61,27 @@ dromeo.on(
       'handler':routeHandler, 
       'defaults':{'foo':'moo','extra':'extra'}
       }
-    ).fallback( 
-        fallbackHandler 
+    ).one(
+      {
+      'route':'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      # same as using
+      #'method': '*',
+      'handler':routeHandler, 
+      'defaults':{'foo':'moo','once':'once'}
+      }
+    ).on(
+      {
+      'route':'http://abc.org/{%ALPHA%:group}/{%abcd12%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      # same as using
+      #'method': '*',
+      'handler':routeHandler, 
+      'defaults':{'foo':'moo','const_pattern':'const_pattern'}
+      }
     )
 
-dromeo.route( 'http://abc.org/users/abcd12/23/soo' )
-dromeo.route( 'http://abc.org/users/abcd12/23/' )
-dromeo.route( 'http://abc.org/users/abcd12/23' )
+dromeo.route( 'http://abc.org/users/abcd12/23/soo', '*', False )
+dromeo.route( 'http://abc.org/users/abcd12/23/', '*', False )
+dromeo.route( 'http://abc.org/users/abcd12/23', '*', False )
 
 
 uri = 'http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1#foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2'

@@ -35,7 +35,7 @@ $dromeo->debug( );
 */
 
 $dromeo
-    
+    ->fallback( 'fallbackHandler' )
     ->on(
       array('route'=>'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
       // same as using
@@ -44,13 +44,27 @@ $dromeo
       'defaults'=>array('foo'=>'moo','extra'=>'extra')
       )
     )
-    
-    ->fallback( 'fallbackHandler' )
+    ->one(
+      array('route'=>'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      // same as using
+      //'method'=>'*',
+      'handler'=>'routeHandler', 
+      'defaults'=>array('foo'=>'moo','once'=>'once')
+      )
+    )
+    ->on(
+      array('route'=>'http://abc.org/{%ALPHA%:group}/{%abcd12%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      // same as using
+      //'method'=>'*',
+      'handler'=>'routeHandler', 
+      'defaults'=>array('foo'=>'moo','const_pattern'=>'const_pattern')
+      )
+    )
 ;
 
-$dromeo->route( 'http://abc.org/users/abcd12/23/soo' );
-$dromeo->route( 'http://abc.org/users/abcd12/23/' );
-$dromeo->route( 'http://abc.org/users/abcd12/23' );
+$dromeo->route( 'http://abc.org/users/abcd12/23/soo', '*', false );
+$dromeo->route( 'http://abc.org/users/abcd12/23/', '*', false );
+$dromeo->route( 'http://abc.org/users/abcd12/23', '*', false );
 
 $uri='http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1';
 echo( PHP_EOL );

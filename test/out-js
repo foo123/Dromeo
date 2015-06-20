@@ -10,6 +10,24 @@ Params:
   id: '23',
   rest: null }
 Route Handler Called
+Route: http://abc.org/users/abcd12/23/soo
+Params: 
+{ foo: 'soo',
+  once: 'once',
+  group: 'users',
+  user: 'abcd12',
+  id: '23',
+  rest: null }
+Route Handler Called
+Route: http://abc.org/users/abcd12/23/soo
+Params: 
+{ foo: 'soo',
+  const_pattern: 'const_pattern',
+  group: 'users',
+  user: 'abcd12',
+  id: '23',
+  rest: null }
+Route Handler Called
 Route: http://abc.org/users/abcd12/23/
 Params: 
 { foo: 'moo',
@@ -19,10 +37,28 @@ Params:
   id: '23',
   rest: '/' }
 Route Handler Called
+Route: http://abc.org/users/abcd12/23/
+Params: 
+{ foo: 'moo',
+  const_pattern: 'const_pattern',
+  group: 'users',
+  user: 'abcd12',
+  id: '23',
+  rest: '/' }
+Route Handler Called
 Route: http://abc.org/users/abcd12/23
 Params: 
 { foo: 'moo',
   extra: 'extra',
+  group: 'users',
+  user: 'abcd12',
+  id: '23',
+  rest: null }
+Route Handler Called
+Route: http://abc.org/users/abcd12/23
+Params: 
+{ foo: 'moo',
+  const_pattern: 'const_pattern',
   group: 'users',
   user: 'abcd12',
   id: '23',

@@ -163,6 +163,8 @@ http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&mo
 // -- instance methods --
 // --------------------------------------------------------
 
+// optional route_prefix to be used in case all routes have a common prefix
+// so can define routes using only the part that differs (easier/shorter code)
 var router = new Dromeo( route_prefix='' );
 
 // set/define delimiters used in route-patterns, see examples
@@ -177,6 +179,7 @@ router.defineDelimiters( ['{', '}', ':', '%'] );
 // ALNUM =>   "[a-zA-Z0-9\\-_]+"         alpha-numeric only
 // QUERY =>   "\\?[^?#]+"                query part with leading '?'
 // FRAGM =>   "#[^?#]+"                  hash/fragment part with leading '#'
+// PART  =>   "[^\\/]+"                  arbitrary path part (between /../)
 // ALL   =>   ".+"                       arbitrary sequence
 router.definePattern( className, subPattern );
 
@@ -190,7 +193,7 @@ router.reset( );
 router.fallback( [handlerFunc | false | null] );
 
 // set a handler for routePattern, with optional defaults object (oneOff if "one" used)
-router.[on|one]( routeObj );
+router.[on|one]( routeObj | routeObjs | routePattern, handler );
 // route object configuration
 //
 //{
@@ -200,6 +203,9 @@ router.[on|one]( routeObj );
 //    defaults: {/*..*/} // any default and/or extra parameters to be used, if missing, and passed to handler, default is {}
 //}
 //
+
+// this also works:
+router.[on|one]( routePattern, function(params){/*..*/} );
 
 // set handler(s) for multiple routePattern(s) (oneOff if "one" used)
 
@@ -239,7 +245,7 @@ var component = router.glue( params );
 // match and route a given url 
 // (with optional method, only routes which match the method will be used), 
 // returns true if matched any routePattern else false
-var matched = router.route( url, method="*" );
+var matched = router.route( url, method="*", breakOnFirstMatch=true );
 
 ```
 

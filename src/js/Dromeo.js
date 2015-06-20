@@ -155,7 +155,7 @@ var __version__ = "0.6",
                 v = o2[k];
                 if ( is_number(v) ) o1[k] = 0+v;
                 else if ( is_string(v) ) o1[k] = v.slice();
-                else if ( is_array(v) ) o1[k] = deep ? extend([], v, deep) : v;
+                else if ( is_array(v) ) o1[k] = deep ? extend(new Array(v.length), v, deep) : v;
                 else if ( is_obj(v) ) o1[k] = deep ? extend({}, v, deep) : v;
                 else o1[k] = v;
             }
@@ -387,7 +387,7 @@ var __version__ = "0.6",
             {
                 if ( pattern[ i ].length )
                 {
-                    if ( _patterns[ pattern[ i ] ] )
+                    if ( _patterns[HAS]( pattern[ i ] ) )
                     {
                         p.push( '(' + _patterns[ pattern[ i ] ] + ')' );
                         numGroups++;
@@ -397,9 +397,10 @@ var __version__ = "0.6",
                         p.push( '(' + m[ 1 ].split('|').filter( length ).map( esc_regex ).join('|') + ')' );
                         numGroups++;
                     }
-                    else
+                    else if ( pattern[ i ].length )
                     {
-                        p.push( esc_regex( pattern[ i ] ) );
+                        p.push( '(' + esc_regex( pattern[ i ] ) + ')' );
+                        numGroups++;
                     }
                 }
                 isPattern = false;
@@ -566,11 +567,12 @@ var Dromeo = function( route_prefix ) {
     self.definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' );
     self.definePattern( 'QUERY',   '\\?[^?#]+' );
     self.definePattern( 'FRAGM',   '#[^?#]+' );
+    self.definePattern( 'PART',    '[^\\/]+' );
     self.definePattern( 'ALL',     '.+' );
     self._handlers = { '*':{} };
     self._routes = [ ];
     self._fallback = false;
-    self._prefix = route_prefix || '';
+    self._prefix = route_prefix ? route_prefix : '';
 };
 Dromeo.VERSION = __version__;
 Dromeo.Route = Route;
@@ -713,7 +715,7 @@ Dromeo[PROTO] = {
             {
                 document.location.href = url;
                 // make sure document is reloaded in case only hash changes
-                document.location.reload( true );
+                //document.location.reload( true );
             }
             else if ( response )
             {
@@ -737,47 +739,43 @@ Dromeo[PROTO] = {
     
     on: function( /* var args here .. */ ) {
         var self = this, args = arguments,
-            args_len = args.length
+            args_len = args.length, routes
         ;
         
         if ( 1 === args_len )
         {
-            if ( is_array(args[ 0 ]) )
-            {
-                addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, args[ 0 ] );
-            }
-            else
-            {
-                addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, [args[ 0 ]] );
-            }
+            routes = is_array(args[ 0 ]) ? args[ 0 ] : [args[ 0 ]];
+        }
+        else if ( 2 === args_len && is_string(args[0]) && is_callable(args[1]) )
+        {
+            routes = [{route: args[0], handler: args[1], method: '*', defaults: {}}];
         }
         else
         {
-            addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, args );
+            routes = args;
         }
+        addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, routes );
         return self;
     },
     
     one: function( /* var args here .. */ ) {
         var self = this, args = arguments,
-            args_len = args.length
+            args_len = args.length, routes
         ;
         
         if ( 1 === args_len )
         {
-            if ( is_array(args[ 0 ]) )
-            {
-                addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, args[ 0 ], true );
-            }
-            else
-            {
-                addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, [args[ 0 ]], true );
-            }
+            routes = is_array(args[ 0 ]) ? args[ 0 ] : [args[ 0 ]];
+        }
+        else if ( 2 === args_len && is_string(args[0]) && is_callable(args[1]) )
+        {
+            routes = [{route: args[0], handler: args[1], method: '*', defaults: {}}];
         }
         else
         {
-            addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, args, true );
+            routes = args;
         }
+        addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, routes, true );
         return self;
     },
     
@@ -858,22 +856,27 @@ Dromeo[PROTO] = {
         return self;
     },
     
-    route: function( r, method ) {
-        var self = this, routes = self._routes, 
+    route: function( r, method, breakOnFirstMatch ) {
+        var self = this, routes, 
             route, params, defaults,
             i, l, lh, h, m, v, g, 
-            handlers, handler
+            handlers, handler, found;
         ;
         
         if ( r )
         {
+            breakOnFirstMatch = false !== breakOnFirstMatch;
             method = method ? method.toLowerCase( ) : '*';
+            routes = self._routes.slice( ); // copy, avoid mutation
+            found = false;
             l = routes.length;
             for (i=0; i<l; i++) 
             {
                 route = routes[ i ];
                 if ( method !== route.method && '*' !== route.method ) continue;
                 if ( !(m = r.match(route.pattern)) ) continue;
+                
+                found = true;
                 
                 // copy handlers, avoid mutation during calls
                 handlers = route.handlers.slice( 0 );
@@ -889,6 +892,7 @@ Dromeo[PROTO] = {
                     defaults = handler[1];
                     params = {
                         route: r,
+                        pattern: route.route,
                         fallback: false,
                         data: extend({}, defaults, true)
                     };
@@ -912,13 +916,16 @@ Dromeo[PROTO] = {
                     handler = route.handlers[h];
                     if ( handler[2] && handler[3] ) route.handlers.splice(h, 1);
                 }
+                if ( !route.handlers.length )
+                    clearRoute( self._handlers[route.method], self._routes, route.route, route.method );
                 
-                return true;
+                if ( breakOnFirstMatch ) return true;
             }
+            if ( found ) return true;
         }
         if ( self._fallback )
         {
-            self._fallback( {route: r, fallback: true, data: null} );
+            self._fallback( {route: r, pattern: null, fallback: true, data: null} );
             return false;
         }
         return false;

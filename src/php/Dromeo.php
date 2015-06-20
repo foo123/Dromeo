@@ -161,11 +161,12 @@ class Dromeo
         $this->definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' );
         $this->definePattern( 'QUERY',   '\\?[^?#]+' );
         $this->definePattern( 'FRAGM',   '#[^?#]+' );
+        $this->definePattern( 'PART',    '[^\\/]+' );
         $this->definePattern( 'ALL',     '.+' );
         $this->_handlers = array( '*'=>array() );
         $this->_routes = array( );
         $this->_fallback = false;
-        $this->_prefix = $route_prefix;
+        $this->_prefix = $route_prefix ? $route_prefix : '';
     }
     
     public function __destruct()
@@ -319,19 +320,24 @@ class Dromeo
         
         if ( 1 === $args_len )
         {
-            if ( is_array($args[ 0 ]) && isset($args[ 0 ][ 0 ]) && is_array($args[ 0 ][ 0 ]) )
-            {
-                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $args[0]);
-            }
-            else
-            {
-                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, array($args[0]));
-            }
+            $routes = is_array($args[ 0 ]) && isset($args[ 0 ][ 0 ]) && is_array($args[ 0 ][ 0 ])
+                    ? $args[0]
+                    : array($args[0]);
+        }
+        elseif ( 2 === $args_len && is_string($args[0]) && is_callable($args[1]) )
+        {
+            $routes = array(array(
+                'route'=> $args[0], 
+                'handler'=> $args[1], 
+                'method'=> '*', 
+                'defaults'=> array()
+            ));
         }
         else
         {
-            self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $args);
+            $routes = $args;
         }
+        self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $routes);
         return $this;
     }
     
@@ -341,19 +347,24 @@ class Dromeo
         
         if ( 1 === $args_len )
         {
-            if ( is_array($args[ 0 ]) && isset($args[ 0 ][ 0 ]) && is_array($args[ 0 ][ 0 ]) )
-            {
-                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $args[0], true);
-            }
-            else
-            {
-                self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, array($args[0]), true);
-            }
+            $routes = is_array($args[ 0 ]) && isset($args[ 0 ][ 0 ]) && is_array($args[ 0 ][ 0 ])
+                    ? $args[0]
+                    : array($args[0]);
+        }
+        elseif ( 2 === $args_len && is_string($args[0]) && is_callable($args[1]) )
+        {
+            $routes = array(array(
+                'route'=> $args[0], 
+                'handler'=> $args[1], 
+                'method'=> '*', 
+                'defaults'=> array()
+            ));
         }
         else
         {
-            self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $args, true);
+            $routes = $args;
         }
+        self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $routes, true);
         return $this;
     }
     
@@ -428,16 +439,21 @@ class Dromeo
         return $this;
     }
     
-    public function route( $r=null, $method="*" ) 
+    public function route( $r=null, $method="*", $breakOnFirstMatch=true ) 
     {
         if ( $r )
         {
+            $breakOnFirstMatch = false !== $breakOnFirstMatch;
             $method = $method ? strtolower($method) : '*';
-            foreach ($this->_routes as $route) 
+            $routes = array_merge(array(), $this->_routes); // copy, avoid mutation
+            $found = false;
+            foreach ($routes as $route) 
             {
                 if ( $method !== $route->method && '*' !== $route->method ) continue;
                 if ( !preg_match($route->pattern, $r, $m, 0, 0) ) continue;
 
+                $found = true;
+                
                 // copy handlers avoid mutation during calls
                 // is this shallow or deep copy???
                 // since using objects as array items, it should be shallow
@@ -451,9 +467,10 @@ class Dromeo
                     
                     // get params
                     $params = array(
-                        'route' => $r,
+                        'route'=> $r,
+                        'pattern'=> $route->route,
                         'fallback'=> false,
-                        'data' => array_merge_recursive(array(), $handler->defaults)
+                        'data'=> array_merge_recursive(array(), $handler->defaults)
                     );
                     foreach ($route->captures as $v=>$g) 
                     {
@@ -473,13 +490,16 @@ class Dromeo
                     $handler =& $route->handlers[$h];
                     if ( $handler->oneOff && $handler->called ) array_splice($route->handlers, $h, 1);
                 }
-                    
-                return true;
+                if ( empty($route->handlers) )
+                    self::clearRoute( $this->_handlers[$route->method], $this->_routes, $route->route, $route->method );
+
+                if ( $breakOnFirstMatch ) return true;
             }
+            if ( $found ) return true;
         }
         if ( $this->_fallback )
         {
-            call_user_func( $this->_fallback, array('route'=>$r, 'fallback'=> true, 'data'=>null) );
+            call_user_func( $this->_fallback, array('route'=>$r, 'pattern'=> null, 'fallback'=> true, 'data'=>null) );
             return false;
         }
         return false;
@@ -630,9 +650,10 @@ class Dromeo
                         $p[ ] = '(' . implode( '|', array_map( 'preg_quote', array_filter( explode( '|', $m[1] ), 'strlen' ) ) ) . ')';
                         $numGroups++;
                     }
-                    else
+                    elseif ( strlen($pattern[ $i ]) )
                     {
-                        $p[ ] = preg_quote( $pattern[ $i ], '/' );
+                        $p[ ] = '(' . preg_quote( $pattern[ $i ], '/' ) . ')';
+                        $numGroups++;
                     }
                 }
                 $isPattern = false;

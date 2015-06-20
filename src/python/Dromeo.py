@@ -340,8 +340,9 @@ def makePattern( delims, patterns, pattern ):
                     if m:
                         p.append( '(' + '|'.join( map( re.escape, filter( length, m.group(1).split('|') ) ) ) + ')' )
                         numGroups += 1
-                    else:
-                        p.append( re.escape( pt ) )
+                    elif len(pt):
+                        p.append( '(' + re.escape( pt ) + ')' )
+                        numGroups += 1
             isPattern = False
         else:
             if len(pt): p.append( re.escape( pt ) )
@@ -454,11 +455,12 @@ class Dromeo:
         self.definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' )
         self.definePattern( 'QUERY',   '\\?[^?#]+' )
         self.definePattern( 'FRAGM',   '#[^?#]+' )
+        self.definePattern( 'PART',    '[^\\/]+' )
         self.definePattern( 'ALL',     '.+' )
         self._handlers = { '*':{} }
         self._routes = [ ]
         self._fallback = False
-        self._prefix = str(prefix)
+        self._prefix = str(prefix) if prefix else ''
     
     
     def __del__(self):
@@ -571,13 +573,13 @@ class Dromeo:
         args_len = len(args)
         
         if 1 == args_len: 
-            if isinstance(args[0], (list, tuple)):
-                addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, args[0])
-            else:
-                addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, [args[0]])
+            routes = args[0] if isinstance(args[0], (list, tuple)) else [args[0]]
+        elif 2 == args_len and isinstance(args[0], str) and callable(args[1]):
+            routes = [{'route': args[0], 'handler': args[1], 'method': '*', 'defaults': {}}]
         else:
-            addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, args)
+            routes = args
         
+        addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, routes)
         return self
     
     
@@ -585,13 +587,13 @@ class Dromeo:
         args_len = len(args)
         
         if 1 == args_len: 
-            if isinstance(args[0], (list, tuple)):
-                addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, args[0], True)
-            else:
-                addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, [args[0]], True)
+            routes = args[0] if isinstance(args[0], (list, tuple)) else [args[0]]
+        elif 2 == args_len and isinstance(args[0], str) and callable(args[1]):
+            routes = [{'route': args[0], 'handler': args[1], 'method': '*', 'defaults': {}}]
         else:
-            addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, args, True)
+            routes = args
         
+        addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, routes, True)
         return self
     
     
@@ -649,15 +651,19 @@ class Dromeo:
         return self
     
     
-    def route( self, r=None, method="*" ):
+    def route( self, r=None, method="*", breakOnFirstMatch=True ):
         if r:
+            breakOnFirstMatch = False != breakOnFirstMatch
             method = str(method).lower() if method else "*"
-            
-            for route in self._routes:
+            routes = self._routes[:] # copy, avoid mutation
+            found = False
+            for route in routes:
                 if method != route.method and '*' != route.method: continue
                 m = route.pattern.match( r )
                 if not m: continue
-
+                
+                found = True
+                
                 # copy handlers avoid mutation during calls
                 handlers = route.handlers[ : ]
                 
@@ -671,6 +677,7 @@ class Dromeo:
                     defaults = handler[1]
                     params = {
                         'route': r,
+                        'pattern': route.route,
                         'fallback': False,
                         'data': copy.deepcopy(defaults)
                     }
@@ -689,12 +696,15 @@ class Dromeo:
                     handler = route.handlers[lh]
                     if handler[2] and handler[3]: del route.handlers[lh : lh+1]
                     lh -= 1
+                if 0 == len(route.handlers):
+                    clearRoute( self._handlers[route.method], self._routes, route.route, route.method )
                 
-                
-                return True
+                if breakOnFirstMatch: return True
+            
+            if found: return True
         
         if self._fallback:  
-            self._fallback( {'route': r, 'fallback': True, 'data': None} )
+            self._fallback( {'route': r, 'pattern': None, 'fallback': True, 'data': None} )
             return False
         return False
 
