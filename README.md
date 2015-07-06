@@ -58,12 +58,14 @@ dromeo
       {
       // route pattern
       route: 'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
-      // method, default is '*' all
+      // method, default is '*', any
       //method: '*',
       // route handler
       handler: routeHandler, 
       // default params (if any)
-      defaults: {'foo':'moo','extra-flag','extra'}
+      defaults: {'foo':'moo','extra-flag','extra'},
+      // optional type-casting for certain matches
+      types: {'id': Dromeo.TYPE['INTEGER']}
       }
     
     )
@@ -94,7 +96,7 @@ echo( dromeo.build(uri, {
 
 **output:**
 ```text
-Dromeo.VERSION = 0.6
+Dromeo.VERSION = 0.6.1
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo
@@ -103,7 +105,7 @@ Params:
   extra: 'extra',
   group: 'users',
   user: 'abcd12',
-  id: '23',
+  id: 23,
   rest: null }
 
 Parse URI: http://abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1
@@ -179,12 +181,15 @@ router.defineDelimiters( ['{', '}', ':', '%'] );
 // ALNUM =>   "[a-zA-Z0-9\\-_]+"         alpha-numeric only
 // QUERY =>   "\\?[^?#]+"                query part with leading '?'
 // FRAGM =>   "#[^?#]+"                  hash/fragment part with leading '#'
-// PART  =>   "[^\\/]+"                  arbitrary path part (between /../)
+// PART  =>   "[^\\/?#]+"                arbitrary path part (between /../)
 // ALL   =>   ".+"                       arbitrary sequence
 router.definePattern( className, subPattern );
 
 // unset/remove the sub-pattern "clasName"
 router.dropPattern( className );
+
+// define a custom type, to be used as (optional) typecaster for matching parts
+router.defineType( type, typecaster );
 
 // reset/remove routes and fallback handler
 router.reset( );
@@ -200,7 +205,8 @@ router.[on|one]( routeObj | routeObjs | routePattern, handler );
 //    route: '..', // the route pattern matched, needed
 //    method: 'post', // the method (case-insensitive), default is '*', i.e any
 //    handler: function(params){/*..*/}, // the route handler to be called, needed
-//    defaults: {/*..*/} // any default and/or extra parameters to be used, if missing, and passed to handler, default is {}
+//    defaults: {/*..*/}, // any default and/or extra parameters to be used, if missing, and passed to handler, default is {}
+//    types: {/*..*/} // optional typecasters for specific matches, i.e INTEGER, STRING, ARRAY, PARAMS or custom, default null
 //}
 //
 
@@ -251,4 +257,7 @@ var matched = router.route( url, method="*", breakOnFirstMatch=true );
 
 **TODO**
 
+* add support for (http/request) method [DONE]
+* add support for extra passed defaults [DONE]
+* add support for (optional) type-casting of matched parameters [DONE]
 * add support for [RFC 6570 URI Template specification](http://tools.ietf.org/html/rfc6570)

@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6
+#   @version: 0.6.1
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -408,6 +408,7 @@ def addRoute( handlers, routes, delims, patterns, prefix, route, oneOff=False ):
         oneOff = (True == oneOff)
         handler = route['handler']
         defaults = dict(route['defaults']) if 'defaults' in route else {}
+        types = dict(route['types']) if ('types' in route) and route['types'] else None
         method = str(route['method']).lower() if 'method' in route else '*'
         route = prefix + route['route']
         
@@ -415,10 +416,10 @@ def addRoute( handlers, routes, delims, patterns, prefix, route, oneOff=False ):
         h = handlers[method]
         
         if route in h:
-            h[ route ].handlers.append( [handler, defaults, oneOff, 0] )
+            h[ route ].handlers.append( [handler, defaults, types, oneOff, 0] )
         else:
             h[ route ] = makeRoute( delims, patterns, route, method )
-            h[ route ].handlers.append( [handler, defaults, oneOff, 0] )
+            h[ route ].handlers.append( [handler, defaults, types, oneOff, 0] )
             routes.append( h[ route ] )
 
 
@@ -436,16 +437,81 @@ def clearRoute( handlers, routes, route, method ):
     handlers[ route ].dispose( )
     del handlers[ route ]
 
-        
+def toInteger( v ):
+    return int(v, 10)
+    
+def toString( v ):
+    return v if isinstance(v, str) else str(v)
+    
+def toArray( v ):
+    return v if isinstance(v, (list,tuple)) else [v]
+    
+def toParams( v ):
+    return Dromeo.unglue_params(v) if isinstance(v, str) else v
+    
+    
 class Dromeo:
     """
     Dromeo Router for Python,
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6"
+    VERSION = "0.6.1"
     
     Route = Route
+    
+    TYPE = {
+        'INTEGER': toInteger,
+        'STRING': toString,
+        'ARRAY': toArray,
+        'PARAMS': toParams
+    }
+    
+    # build/glue together a uri component from a params object
+    def glue_params( params ):
+        component = '';
+        # http://php.net/manual/en/function.http-build-query.php (for '+' sign convention)
+        if params:  component += http_build_query( params, '&', True )
+        return component
+        
+    # unglue/extract params object from uri component
+    def unglue_params( s ):
+        if s: PARAMS = parse_str( s )
+        else: PARAMS = { }
+        return PARAMS
+
+    # parse and extract uri components and optional query/fragment params
+    def parse_components( s, query_p='query_params', fragment_p='fragment_params' ):
+        COMPONENTS = { }
+        if s:
+            COMPONENTS = parse_url( s )
+            
+            if query_p:
+                if 'query' in COMPONENTS:
+                    COMPONENTS[ query_p ] = Dromeo.unglue_params( COMPONENTS[ 'query' ] )
+                else:
+                    COMPONENTS[ query_p ] = { }
+            
+            if fragment_p:
+                if 'fragment' in COMPONENTS:
+                    COMPONENTS[ fragment_p ] = Dromeo.unglue_params( COMPONENTS[ 'fragment' ] )
+                else:
+                    COMPONENTS[ fragment_p ] = { }
+        
+        return COMPONENTS
+
+    
+    # build a url from baseUrl plus query/hash params
+    def build_components( baseUrl, query=None, hash=None, q='?', h='#' ):
+        url = '' + baseUrl
+        if query:  url += q + Dromeo.glue_params( query )
+        if hash:  url += h + Dromeo.glue_params( hash )
+        return url
+        
+    def defType( type, caster ):
+        if type and caster and callable(caster):
+            Dromeo.TYPE[type] = caster
+        
     
     def __init__( self, prefix='' ):
         self._delims = ['{', '}', ':', '%']
@@ -455,7 +521,7 @@ class Dromeo:
         self.definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' )
         self.definePattern( 'QUERY',   '\\?[^?#]+' )
         self.definePattern( 'FRAGM',   '#[^?#]+' )
-        self.definePattern( 'PART',    '[^\\/]+' )
+        self.definePattern( 'PART',    '[^\\/?#]+' )
         self.definePattern( 'ALL',     '.+' )
         self._handlers = { '*':{} }
         self._routes = [ ]
@@ -506,50 +572,31 @@ class Dromeo:
             del self._patterns[ className ]
         return self
     
+    def defineType( self, type, caster ):
+        Dromeo.defType(type, caster)
+        return self
+    
+    
     #def debug( self ):
     #    print('Routes: ', pprint.pformat(self._routes, 4))
     #    print('Fallback: ', pprint.pformat(self._fallback, 4))
     
     # build/glue together a uri component from a params object
     def glue( self, params ):
-        component = '';
-        # http://php.net/manual/en/function.http-build-query.php (for '+' sign convention)
-        if params:  component += http_build_query( params, '&', True )
-        return component
+        return Dromeo.glue_params( params )
         
     # unglue/extract params object from uri component
     def unglue( self, s ):
-        if s: PARAMS = parse_str( s )
-        else: PARAMS = { }
-        return PARAMS
+        return Dromeo.unglue_params( s )
 
     # parse and extract uri components and optional query/fragment params
     def parse( self, s, query_p='query_params', fragment_p='fragment_params' ):
-        COMPONENTS = { }
-        if s:
-            COMPONENTS = parse_url( s )
-            
-            if query_p:
-                if 'query' in COMPONENTS:
-                    COMPONENTS[ query_p ] = self.unglue( COMPONENTS[ 'query' ] )
-                else:
-                    COMPONENTS[ query_p ] = { }
-            
-            if fragment_p:
-                if 'fragment' in COMPONENTS:
-                    COMPONENTS[ fragment_p ] = self.unglue( COMPONENTS[ 'fragment' ] )
-                else:
-                    COMPONENTS[ fragment_p ] = { }
-        
-        return COMPONENTS
+        return Dromeo.parse_components( s, query_p, fragment_p )
 
     
     # build a url from baseUrl plus query/hash params
     def build( self, baseUrl, query=None, hash=None, q='?', h='#' ):
-        url = '' + baseUrl
-        if query:  url += q + self.glue( query )
-        if hash:  url += h + self.glue( hash )
-        return url
+        return Dromeo.build_components( baseUrl, query, hash, q, h )
         
     
     def redirect( self, url, httpHandler, statusCode=302, statusMsg=True ):
@@ -575,7 +622,7 @@ class Dromeo:
         if 1 == args_len: 
             routes = args[0] if isinstance(args[0], (list, tuple)) else [args[0]]
         elif 2 == args_len and isinstance(args[0], str) and callable(args[1]):
-            routes = [{'route': args[0], 'handler': args[1], 'method': '*', 'defaults': {}}]
+            routes = [{'route': args[0], 'handler': args[1], 'method': '*', 'defaults': {}, 'types': None}]
         else:
             routes = args
         
@@ -589,7 +636,7 @@ class Dromeo:
         if 1 == args_len: 
             routes = args[0] if isinstance(args[0], (list, tuple)) else [args[0]]
         elif 2 == args_len and isinstance(args[0], str) and callable(args[1]):
-            routes = [{'route': args[0], 'handler': args[1], 'method': '*', 'defaults': {}}]
+            routes = [{'route': args[0], 'handler': args[1], 'method': '*', 'defaults': {}, 'types': None}]
         else:
             routes = args
         
@@ -672,9 +719,10 @@ class Dromeo:
                 for h in range(len(handlers)):
                     handler = handlers[ h ]
                     # handler is oneOff and already called
-                    if handler[2] and handler[3]: continue
+                    if handler[3] and handler[4]: continue
                     
                     defaults = handler[1]
+                    type = handler[2]
                     params = {
                         'route': r,
                         'pattern': route.route,
@@ -682,11 +730,15 @@ class Dromeo:
                         'data': copy.deepcopy(defaults)
                     }
                     for v,g in captures:
-                        if m.group( g ): params['data'][ v ] = m.group( g )
-                        #elif v in defaults: params['data'][ v ] = defaults[ v ]
-                        elif v not in params['data']: params['data'][ v ] = None
+                        if m.group( g ):
+                            if type and v in type and callable(type[ v ]):
+                                params['data'][ v ] = type[ v ]( m.group( g ) )
+                            else:
+                                params['data'][ v ] = m.group( g )
+                        elif v not in params['data']: 
+                            params['data'][ v ] = None
                     
-                    handler[3] = 1 # handler called
+                    handler[4] = 1 # handler called
                     handler[0]( params )
                 
                 # remove called oneOffs
@@ -694,7 +746,7 @@ class Dromeo:
                 while lh >= 0: 
                     # handler is oneOff and called once
                     handler = route.handlers[lh]
-                    if handler[2] and handler[3]: del route.handlers[lh : lh+1]
+                    if handler[3] and handler[4]: del route.handlers[lh : lh+1]
                     lh -= 1
                 if 0 == len(route.handlers):
                     clearRoute( self._handlers[route.method], self._routes, route.route, route.method )

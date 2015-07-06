@@ -1,4 +1,4 @@
-Dromeo.VERSION = 0.6
+Dromeo.VERSION = 0.6.1
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo

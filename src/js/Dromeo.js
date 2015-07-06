@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6
+*   @version: 0.6.1
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -31,7 +31,7 @@ else if ( !(name in root) )
     /* module factory */        function( exports, undef ) {
 "use strict";
 
-var __version__ = "0.6", 
+var __version__ = "0.6.1", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -506,6 +506,7 @@ var __version__ = "0.6",
             oneOff = (true === oneOff);
             var handler = route.handler,
                 defaults = route.defaults || {},
+                types = route.types || null,
                 method = route.method ? route.method.toLowerCase() : '*',
                 h;
             route = prefix + route.route;
@@ -515,19 +516,19 @@ var __version__ = "0.6",
             
             if ( h[HAS]( route ) )
             {
-                h[ route ].handlers.push( [handler, defaults, oneOff, 0] );
+                h[ route ].handlers.push( [handler, defaults, types, oneOff, 0] );
             }
             else
             {
                 h[ route ] = makeRoute( delims, patterns, route, method );
-                h[ route ].handlers.push( [handler, defaults, oneOff, 0] );
+                h[ route ].handlers.push( [handler, defaults, types, oneOff, 0] );
                 routes.push( h[ route ] );
             }
         }
     },
 
     addRoutes = function( handlers, routes, delims, patterns, prefix, args, oneOff ) {
-        var route, i, defaults, namespace;
+        var route, i;
         oneOff = !!oneOff;
         for (i=0; i<args.length; i++)
         {
@@ -567,7 +568,7 @@ var Dromeo = function( route_prefix ) {
     self.definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' );
     self.definePattern( 'QUERY',   '\\?[^?#]+' );
     self.definePattern( 'FRAGM',   '#[^?#]+' );
-    self.definePattern( 'PART',    '[^\\/]+' );
+    self.definePattern( 'PART',    '[^\\/?#]+' );
     self.definePattern( 'ALL',     '.+' );
     self._handlers = { '*':{} };
     self._routes = [ ];
@@ -576,6 +577,72 @@ var Dromeo = function( route_prefix ) {
 };
 Dromeo.VERSION = __version__;
 Dromeo.Route = Route;
+Dromeo.TYPE = {
+    'INTEGER': function( v ) {
+        return parseInt(v, 10);
+    }
+    ,'STRING': function( v ) {
+        return is_string(v) ? v : '' + String(v);
+    }
+    ,'ARRAY': function( v ) {
+        return is_array(v) ? v : [v];
+    }
+    ,'PARAMS': function( v ) {
+        return is_string(v) ? Dromeo.unglue_params(v) : v;
+    }
+};
+// build/glue together a uri component from a params object
+Dromeo.glue_params = function( params ) {
+    var component = '';
+    // http://php.net/manual/en/function.http-build-query.php
+    if ( params )  component += http_build_query( params, '&', true );
+    return component;
+};
+// unglue/extract params object from uri component
+Dromeo.unglue_params = function( s ) {
+    var PARAMS = s ? parse_str( s ) : { };
+    return PARAMS;
+};
+// parse and extract uri components and optional query/fragment params
+Dromeo.parse_components = function( s, query_p, fragment_p ) {
+    var self = this, COMPONENTS = { };
+    if ( s )
+    {
+        if ( arguments.length < 3 ) fragment_p = 'fragment_params';
+        if ( arguments.length < 2 ) query_p = 'query_params';
+        
+        COMPONENTS = parse_url( s );
+        
+        if ( query_p ) 
+        {
+            if ( COMPONENTS[ 'query' ] ) 
+                COMPONENTS[ query_p ] = self.unglue_params( COMPONENTS[ 'query' ] );
+            else
+                COMPONENTS[ query_p ] = { };
+        }
+        if ( fragment_p )
+        {
+            if ( COMPONENTS[ 'fragment' ] ) 
+                COMPONENTS[ fragment_p ] = self.unglue_params( COMPONENTS[ 'fragment' ] );
+            else
+                COMPONENTS[ fragment_p ] = { };
+        }
+    }
+    return COMPONENTS;
+};
+// build a url from baseUrl plus query/hash params
+Dromeo.build_components = function( baseUrl, query, hash, q, h ) {
+    var self = this,
+        url = '' + baseUrl;
+    if ( arguments.length < 5 ) h = '#';
+    if ( arguments.length < 4 ) q = '?';
+    if ( query )  url += q + self.glue_params( query );
+    if ( hash )  url += h + self.glue_params( hash );
+    return url;
+};
+Dromeo.defType = function( type, caster ) {
+    if ( type && is_callable(caster) ) Dromeo.TYPE[type] = caster;
+};
 Dromeo[PROTO] = {
     constructor: Dromeo,
     
@@ -653,57 +720,29 @@ Dromeo[PROTO] = {
         return self;
     },
     
+    defineType: function( type, caster )  {
+        Dromeo.defType( type, caster );
+        return this;
+    },
+    
     // build/glue together a uri component from a params object
     glue: function( params ) {
-        var component = '';
-        // http://php.net/manual/en/function.http-build-query.php
-        if ( params )  component += http_build_query( params, '&', true );
-        return component;
+        return Dromeo.glue_params( params );
     },
     
     // unglue/extract params object from uri component
     unglue: function( s ) {
-        var PARAMS = s ? parse_str( s ) : { };
-        return PARAMS;
+        return Dromeo.unglue_params( s );
     },
-
+    
     // parse and extract uri components and optional query/fragment params
     parse: function( s, query_p, fragment_p ) {
-        var self = this, COMPONENTS = { };
-        if ( s )
-        {
-            if ( arguments.length < 3 ) fragment_p = 'fragment_params';
-            if ( arguments.length < 2 ) query_p = 'query_params';
-            
-            COMPONENTS = parse_url( s );
-            
-            if ( query_p ) 
-            {
-                if ( COMPONENTS[ 'query' ] ) 
-                    COMPONENTS[ query_p ] = self.unglue( COMPONENTS[ 'query' ] );
-                else
-                    COMPONENTS[ query_p ] = { };
-            }
-            if ( fragment_p )
-            {
-                if ( COMPONENTS[ 'fragment' ] ) 
-                    COMPONENTS[ fragment_p ] = self.unglue( COMPONENTS[ 'fragment' ] );
-                else
-                    COMPONENTS[ fragment_p ] = { };
-            }
-        }
-        return COMPONENTS;
+        return Dromeo.parse_components( s, query_p, fragment_p );
     },
-
+    
     // build a url from baseUrl plus query/hash params
     build: function( baseUrl, query, hash, q, h ) {
-        var self = this,
-            url = '' + baseUrl;
-        if ( arguments.length < 5 ) h = '#';
-        if ( arguments.length < 4 ) q = '?';
-        if ( query )  url += q + self.glue( query );
-        if ( hash )  url += h + self.glue( hash );
-        return url;
+        return Dromeo.build_components( baseUrl, query, hash, q, h );
     },
     
     redirect: function( url, response, statusCode, statusMsg ) {
@@ -748,7 +787,7 @@ Dromeo[PROTO] = {
         }
         else if ( 2 === args_len && is_string(args[0]) && is_callable(args[1]) )
         {
-            routes = [{route: args[0], handler: args[1], method: '*', defaults: {}}];
+            routes = [{route: args[0], handler: args[1], method: '*', defaults: {}, types: null}];
         }
         else
         {
@@ -769,7 +808,7 @@ Dromeo[PROTO] = {
         }
         else if ( 2 === args_len && is_string(args[0]) && is_callable(args[1]) )
         {
-            routes = [{route: args[0], handler: args[1], method: '*', defaults: {}}];
+            routes = [{route: args[0], handler: args[1], method: '*', defaults: {}, types: null}];
         }
         else
         {
@@ -858,7 +897,7 @@ Dromeo[PROTO] = {
     
     route: function( r, method, breakOnFirstMatch ) {
         var self = this, routes, 
-            route, params, defaults,
+            route, params, defaults, type,
             i, l, lh, h, m, v, g, 
             handlers, handler, found;
         ;
@@ -887,9 +926,10 @@ Dromeo[PROTO] = {
                 {
                     handler = handlers[ h ];
                     // handler is oneOff and already called
-                    if ( handler[2] && handler[3] ) continue;
+                    if ( handler[3] && handler[4] ) continue;
                     
                     defaults = handler[1];
+                    type = handler[2];
                     params = {
                         route: r,
                         pattern: route.route,
@@ -900,12 +940,20 @@ Dromeo[PROTO] = {
                     {
                         if ( !route.captures[HAS](v) ) continue;
                         g = route.captures[ v ];
-                        if ( m[ g ] ) params.data[ v ] = m[ g ];
-                        //else if ( defaults[HAS](v) ) params.data[ v ] = defaults[ v ];
-                        else if ( !params.data[HAS](v) ) params.data[ v ] = null;
+                        if ( m[ g ] ) 
+                        {
+                            if ( type && type[HAS]( v ) && is_callable(type[ v ]) )
+                                params.data[ v ] = type[ v ]( m[ g ] );
+                            else
+                                params.data[ v ] = m[ g ];
+                        }
+                        else if ( !params.data[HAS]( v ) ) 
+                        {
+                            params.data[ v ] = null;
+                        }
                     }
                     
-                    handler[3] = 1; // handler called
+                    handler[4] = 1; // handler called
                     handler[0]( params );
                 }
                 
@@ -914,7 +962,7 @@ Dromeo[PROTO] = {
                 {
                     // handler is oneOff and already called once
                     handler = route.handlers[h];
-                    if ( handler[2] && handler[3] ) route.handlers.splice(h, 1);
+                    if ( handler[3] && handler[4] ) route.handlers.splice(h, 1);
                 }
                 if ( !route.handlers.length )
                     clearRoute( self._handlers[route.method], self._routes, route.route, route.method );

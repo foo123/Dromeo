@@ -3,7 +3,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6
+*   @version: 0.6.1
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -48,7 +48,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6";
+    const VERSION = "0.6.1";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(
@@ -152,6 +152,85 @@ class Dromeo
     private $_fallback = false;
     private $_prefix = '';
     
+    public static $TYPE = array();
+    
+    // build/glue together a uri component from a params object
+    public static function glue_params( $params ) 
+    {
+        $component = '';
+        // http://php.net/manual/en/function.http-build-query.php (for '+' sign convention)
+        if ( $params ) $component .= str_replace('+', '%20', http_build_query( $params, '', '&'/*,  PHP_QUERY_RFC3986*/ ));
+        return $component;
+    }
+        
+    // unglue/extract params object from uri component
+    public static function unglue_params( $s ) 
+    {
+        $PARAMS = array( );
+        if ( $s ) parse_str( $s, $PARAMS );
+        return $PARAMS;
+    }
+
+    // parse and extract uri components and optional query/fragment params
+    public static function parse_components( $s, $query_p='query_params', $fragment_p='fragment_params' ) 
+    {
+        $COMPONENTS = array( );
+        if ( $s )
+        {
+            $COMPONENTS = parse_url( $s );
+            
+            if ( $query_p  )
+            {
+                if ( isset($COMPONENTS[ 'query' ]) && $COMPONENTS[ 'query' ] ) 
+                    $COMPONENTS[ $query_p ] = self::unglue_params( $COMPONENTS[ 'query' ] );
+                else
+                    $COMPONENTS[ $query_p ] = array( );
+            }
+            if ( $fragment_p )
+            {
+                if ( isset($COMPONENTS[ 'fragment' ]) && $COMPONENTS[ 'fragment' ] ) 
+                    $COMPONENTS[ $fragment_p ] = self::unglue_params( $COMPONENTS[ 'fragment' ] );
+                else
+                    $COMPONENTS[ $fragment_p ] = array( );
+            }
+        }
+        return $COMPONENTS;
+    }
+
+    // build a url from baseUrl plus query/hash params
+    public static function build_components( $baseUrl, $query=null, $hash=null, $q='?', $h='#' ) 
+    {
+        $url = '' . $baseUrl;
+        if ( $query )  $url .= $q . self::glue_params( $query );
+        if ( $hash )  $url .= $h . self::glue_params( $hash );
+        return $url;
+    }
+        
+    public static function toInteger($v)
+    {
+        return intval($v, 10);
+    }
+    
+    public static function toString($v)
+    {
+        return is_string($v) ? $v : strval($v);
+    }
+    
+    public static function toArray($v)
+    {
+        return is_array($v) ? $v : array($v);
+    }
+    
+    public static function toParams($v)
+    {
+        return is_string($v) ? self::ungle_params($v) : $v;
+    }
+    
+    public static function defType($type, $caster)
+    {
+        if ( $type && is_callable($caster) ) self::$TYPE[$type] = $caster;
+    }
+    
     public function __construct( $route_prefix='' ) 
     {
         $this->_delims = array('{', '}', ':', '%');
@@ -161,7 +240,7 @@ class Dromeo
         $this->definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' );
         $this->definePattern( 'QUERY',   '\\?[^?#]+' );
         $this->definePattern( 'FRAGM',   '#[^?#]+' );
-        $this->definePattern( 'PART',    '[^\\/]+' );
+        $this->definePattern( 'PART',    '[^\\/?#]+' );
         $this->definePattern( 'ALL',     '.+' );
         $this->_handlers = array( '*'=>array() );
         $this->_routes = array( );
@@ -228,6 +307,12 @@ class Dromeo
         return $this;
     }
     
+    public function defineType( $type, $caster )
+    {
+        self::defType( $type, $caster );
+        return $this;
+    }
+    
     /*public function debug( )
     {
         echo 'Routes: ' . print_r($this->_routes, true) . PHP_EOL;
@@ -237,53 +322,25 @@ class Dromeo
     // build/glue together a uri component from a params object
     public function glue( $params ) 
     {
-        $component = '';
-        // http://php.net/manual/en/function.http-build-query.php (for '+' sign convention)
-        if ( $params ) $component .= str_replace('+', '%20', http_build_query( $params, '', '&'/*,  PHP_QUERY_RFC3986*/ ));
-        return $component;
+        return self::glue_params( $params );
     }
         
     // unglue/extract params object from uri component
     public function unglue( $s ) 
     {
-        $PARAMS = array( );
-        if ( $s ) parse_str( $s, $PARAMS );
-        return $PARAMS;
+        return self::unglue_params( $s );
     }
 
     // parse and extract uri components and optional query/fragment params
     public function parse( $s, $query_p='query_params', $fragment_p='fragment_params' ) 
     {
-        $COMPONENTS = array( );
-        if ( $s )
-        {
-            $COMPONENTS = parse_url( $s );
-            
-            if ( $query_p  )
-            {
-                if ( isset($COMPONENTS[ 'query' ]) && $COMPONENTS[ 'query' ] ) 
-                    $COMPONENTS[ $query_p ] = $this->unglue( $COMPONENTS[ 'query' ] );
-                else
-                    $COMPONENTS[ $query_p ] = array( );
-            }
-            if ( $fragment_p )
-            {
-                if ( isset($COMPONENTS[ 'fragment' ]) && $COMPONENTS[ 'fragment' ] ) 
-                    $COMPONENTS[ $fragment_p ] = $this->unglue( $COMPONENTS[ 'fragment' ] );
-                else
-                    $COMPONENTS[ $fragment_p ] = array( );
-            }
-        }
-        return $COMPONENTS;
+        return self::parse_components( $s, $query_p, $fragment_p );
     }
 
     // build a url from baseUrl plus query/hash params
     public function build( $baseUrl, $query=null, $hash=null, $q='?', $h='#' ) 
     {
-        $url = '' . $baseUrl;
-        if ( $query )  $url .= $q . $this->glue( $query );
-        if ( $hash )  $url .= $h . $this->glue( $hash );
-        return $url;
+        return self::build_components( $baseUrl, $query, $hash, $q, $h );
     }
         
     public function redirect( $url, $statusCode=302, $statusMsg=true )
@@ -330,7 +387,8 @@ class Dromeo
                 'route'=> $args[0], 
                 'handler'=> $args[1], 
                 'method'=> '*', 
-                'defaults'=> array()
+                'defaults'=> array(),
+                'types'=> null
             ));
         }
         else
@@ -357,7 +415,8 @@ class Dromeo
                 'route'=> $args[0], 
                 'handler'=> $args[1], 
                 'method'=> '*', 
-                'defaults'=> array()
+                'defaults'=> array(),
+                'types'=> null
             ));
         }
         else
@@ -474,9 +533,22 @@ class Dromeo
                     );
                     foreach ($route->captures as $v=>$g) 
                     {
-                        if ( isset( $m[ $g ] ) && $m[ $g ] ) $params['data'][ $v ] = $m[ $g ];
-                        //elseif ( isset( $handler->defaults[ $v ] ) ) $params['data'][ $v ] = $handler->defaults[ $v ];
-                        elseif ( !isset($params['data'][ $v ]) ) $params['data'][ $v ] = null;
+                        if ( isset( $m[ $g ] ) && $m[ $g ] ) 
+                        {
+                            if ( $handler->types && isset($handler->types[$v]) && is_callable($handler->types[$v]) )
+                            {
+                                $type = $handler->types[$v];
+                                $params['data'][ $v ] = call_user_func($type, $m[ $g ]);
+                            }
+                            else
+                            {
+                                $params['data'][ $v ] = $m[ $g ];
+                            }
+                        }
+                        elseif ( !isset($params['data'][ $v ]) ) 
+                        {
+                            $params['data'][ $v ] = null;
+                        }
                     }
                     
                     $handler->called = 1; // handler called
@@ -527,6 +599,7 @@ class Dromeo
             $oneOff = (true === $oneOff);
             $handler = $route['handler'];
             $defaults = isset($route['defaults']) ? (array)$route['defaults'] : array();
+            $types = isset($route['types']) ? (array)$route['types'] : array();
             $method = isset($route['method']) ? strtolower($route['method']) : '*';
             $route = $prefix . $route['route'];
             
@@ -538,6 +611,7 @@ class Dromeo
                 $h[ $route ]->handlers[] = (object)array(
                     'handler'=>$handler, 
                     'defaults'=>$defaults, 
+                    'types'=>$types, 
                     'oneOff'=>$oneOff, 
                     'called'=>0
                 );
@@ -548,6 +622,7 @@ class Dromeo
                 $h[ $route ]->handlers[] = (object)array(
                     'handler'=>$handler, 
                     'defaults'=>$defaults, 
+                    'types'=>$types, 
                     'oneOff'=>$oneOff, 
                     'called'=>0
                 );
@@ -693,4 +768,8 @@ class Dromeo
         }
     }
 }
+Dromeo::defType('INTEGER', array('Dromeo','toInteger'));
+Dromeo::defType('STRING', array('Dromeo','toString'));
+Dromeo::defType('ARRAY', array('Dromeo','toArray'));
+Dromeo::defType('PARAMS', array('Dromeo','toParams'));
 }

@@ -44,7 +44,8 @@ dromeo
       // same as using
       //method: '*',
       handler: routeHandler, 
-      defaults: {'foo':'moo','extra':'extra'}
+      defaults: {'foo':'moo','extra':'extra'},
+      types: {'id': Dromeo.TYPE['INTEGER']}
       }
     )
     .one(
@@ -53,7 +54,8 @@ dromeo
       // same as using
       //method: '*',
       handler: routeHandler, 
-      defaults: {'foo':'moo','once':'once'}
+      defaults: {'foo':'moo','once':'once'},
+      types: {'id': Dromeo.TYPE['INTEGER']}
       }
     )
     .on(
@@ -62,7 +64,8 @@ dromeo
       // same as using
       //method: '*',
       handler: routeHandler, 
-      defaults: {'foo':'moo','const_pattern':'const_pattern'}
+      defaults: {'foo':'moo','const_pattern':'const_pattern'},
+      types: {'id': Dromeo.TYPE['INTEGER']}
       }
     )
 ;
