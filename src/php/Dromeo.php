@@ -3,7 +3,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.1
+*   @version: 0.6.2
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -48,7 +48,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6.1";
+    const VERSION = "0.6.2";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(
@@ -152,7 +152,7 @@ class Dromeo
     private $_fallback = false;
     private $_prefix = '';
     
-    public static $TYPE = array();
+    public static $TYPES = array( );
     
     // build/glue together a uri component from a params object
     public static function glue_params( $params ) 
@@ -206,34 +206,41 @@ class Dromeo
         return $url;
     }
         
-    public static function toInteger($v)
+    public static function type_to_int($v)
     {
-        return intval($v, 10);
+        $v = intval($v, 10);
+        return !$v ? 0 : $v; // take account of nan to 0
     }
     
-    public static function toString($v)
+    public static function type_to_str($v)
     {
         return is_string($v) ? $v : strval($v);
     }
     
-    public static function toArray($v)
+    public static function type_to_array($v)
     {
         return is_array($v) ? $v : array($v);
     }
     
-    public static function toParams($v)
+    public static function type_to_params($v)
     {
         return is_string($v) ? self::ungle_params($v) : $v;
     }
     
     public static function defType($type, $caster)
     {
-        if ( $type && is_callable($caster) ) self::$TYPE[$type] = $caster;
+        if ( $type && is_callable($caster) ) self::$TYPES[ $type ] = $caster;
+    }
+    
+    public static function TYPE( $type )
+    {
+        if ( $type && isset(self::$TYPES[$type]) ) return self::$TYPES[$type];
+        return null;
     }
     
     public function __construct( $route_prefix='' ) 
     {
-        $this->_delims = array('{', '}', ':', '%');
+        $this->_delims = array('{', '}', '%', '%', ':');
         $this->_patterns = array( );
         $this->definePattern( 'ALPHA',   '[a-zA-Z\\-_]+' );
         $this->definePattern( 'NUMBR',   '[0-9]+' );
@@ -242,13 +249,13 @@ class Dromeo
         $this->definePattern( 'FRAGM',   '#[^?#]+' );
         $this->definePattern( 'PART',    '[^\\/?#]+' );
         $this->definePattern( 'ALL',     '.+' );
-        $this->_handlers = array( '*'=>array() );
+        $this->_handlers = array( '*'=>array( ) );
         $this->_routes = array( );
         $this->_fallback = false;
         $this->_prefix = $route_prefix ? $route_prefix : '';
     }
     
-    public function __destruct()
+    public function __destruct( )
     {
         $this->dispose();
     }
@@ -288,6 +295,7 @@ class Dromeo
             if ( isset($delims[1]) ) $this->_delims[1] = $delims[1];
             if ( isset($delims[2]) ) $this->_delims[2] = $delims[2];
             if ( isset($delims[3]) ) $this->_delims[3] = $delims[3];
+            if ( isset($delims[4]) ) $this->_delims[4] = $delims[4];
         }
         return $this;
     }
@@ -301,9 +309,7 @@ class Dromeo
     public function dropPattern( $className )
     {
         if ( isset($this->_patterns[ $className ]) )
-        {
             unset($this->_patterns[ $className ]);
-        }
         return $this;
     }
     
@@ -657,7 +663,7 @@ class Dromeo
                 $isCaptured = false;
                 
                 // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
-                $p = explode( $_delims[ 2 ], $part );
+                $p = explode( $_delims[ 4 ], $part );
                 $capturePattern = self::makePattern( $_delims, $_patterns, $p[ 0 ] );
                 
                 if ( count($p) > 1 )
@@ -705,7 +711,7 @@ class Dromeo
     private static function makePattern( &$_delims, &$_patterns, $pattern ) 
     {
         $numGroups = 0;
-        $pattern = self::split( $pattern, $_delims[3] );
+        $pattern = self::split( $pattern, $_delims[2], $_delims[3] );
         $p = array( );
         $l = count($pattern);
         $isPattern = false;
@@ -768,8 +774,12 @@ class Dromeo
         }
     }
 }
-Dromeo::defType('INTEGER', array('Dromeo','toInteger'));
-Dromeo::defType('STRING', array('Dromeo','toString'));
-Dromeo::defType('ARRAY', array('Dromeo','toArray'));
-Dromeo::defType('PARAMS', array('Dromeo','toParams'));
+Dromeo::$TYPES['INTEGER']   = array('Dromeo','type_to_int');
+Dromeo::$TYPES['STRING']    = array('Dromeo','type_to_str');
+Dromeo::$TYPES['ARRAY']     = array('Dromeo','type_to_array');
+Dromeo::$TYPES['PARAMS']    = array('Dromeo','type_to_params');
+// aliases
+Dromeo::$TYPES['INT']       = Dromeo::$TYPES['INTEGER'];
+Dromeo::$TYPES['STR']       = Dromeo::$TYPES['STRING'];
+Dromeo::$TYPES['URLENCODED']= Dromeo::$TYPES['PARAMS'];
 }

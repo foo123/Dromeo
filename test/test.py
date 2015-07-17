@@ -60,7 +60,7 @@ dromeo.fallback(
       #'method': '*',
       'handler':routeHandler, 
       'defaults':{'foo':'moo','extra':'extra'},
-      'types':{'id': Dromeo.TYPE['INTEGER']}
+      'types':{'id': Dromeo.TYPE('INTEGER')}
       }
     ).one(
       {
@@ -69,7 +69,7 @@ dromeo.fallback(
       #'method': '*',
       'handler':routeHandler, 
       'defaults':{'foo':'moo','once':'once'},
-      'types':{'id': Dromeo.TYPE['INTEGER']}
+      'types':{'id': Dromeo.TYPE('INTEGER')}
       }
     ).on(
       {
@@ -78,7 +78,7 @@ dromeo.fallback(
       #'method': '*',
       'handler':routeHandler, 
       'defaults':{'foo':'moo','const_pattern':'const_pattern'},
-      'types':{'id': Dromeo.TYPE['INTEGER']}
+      'types':{'id': Dromeo.TYPE('INTEGER')}
       }
     )
 

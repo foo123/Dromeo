@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6.1
+#   @version: 0.6.2
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -326,7 +326,7 @@ def makePattern( delims, patterns, pattern ):
     global _G
     
     numGroups = 0
-    pattern = split( pattern, delims[3] )
+    pattern = split( pattern, delims[2], delims[3] )
     p = [ ]
     isPattern = False
     for i,pt in enumerate(pattern):
@@ -370,7 +370,7 @@ def makeRoute( delims, patterns, route, method=None ):
             isCaptured = False
             
             # http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
-            p = part.split( delims[ 2 ] )
+            p = part.split( delims[ 4 ] )
             capturePattern = makePattern( delims, patterns, p[ 0 ] )
             
             if len(p) > 1:
@@ -437,16 +437,17 @@ def clearRoute( handlers, routes, route, method ):
     handlers[ route ].dispose( )
     del handlers[ route ]
 
-def toInteger( v ):
-    return int(v, 10)
+def type_to_int( v ):
+    v = int(v, 10)
+    return 0 if not v else v # take account of nan
     
-def toString( v ):
+def type_to_str( v ):
     return v if isinstance(v, str) else str(v)
     
-def toArray( v ):
+def type_to_array( v ):
     return v if isinstance(v, (list,tuple)) else [v]
     
-def toParams( v ):
+def type_to_params( v ):
     return Dromeo.unglue_params(v) if isinstance(v, str) else v
     
     
@@ -456,15 +457,20 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6.1"
+    VERSION = "0.6.2"
     
     Route = Route
     
-    TYPE = {
-        'INTEGER': toInteger,
-        'STRING': toString,
-        'ARRAY': toArray,
-        'PARAMS': toParams
+    TYPES = {
+        'INTEGER'   : type_to_int,
+        'STRING'    : type_to_str,
+        'ARRAY'     : type_to_array,
+        'PARAMS'    : type_to_params
+        # aliases
+        ,
+        'INT'       : type_to_int,
+        'STR'       : type_to_str,
+        'URLENCODED': type_to_params
     }
     
     # build/glue together a uri component from a params object
@@ -510,11 +516,15 @@ class Dromeo:
         
     def defType( type, caster ):
         if type and caster and callable(caster):
-            Dromeo.TYPE[type] = caster
+            Dromeo.TYPES[ type ] = caster
+        
+    def TYPE( type ):
+        if type and (type in Dromeo.TYPES): return Dromeo.TYPES[ type ]
+        return None
         
     
     def __init__( self, prefix='' ):
-        self._delims = ['{', '}', ':', '%']
+        self._delims = ['{', '}', '%', '%', ':']
         self._patterns = { }
         self.definePattern( 'ALPHA',   '[a-zA-Z\\-_]+' )
         self.definePattern( 'NUMBR',   '[0-9]+' )
@@ -559,6 +569,7 @@ class Dromeo:
             if l > 1 and delims[1]: self._delims[1] = delims[1]
             if l > 2 and delims[2]: self._delims[2] = delims[2]
             if l > 3 and delims[3]: self._delims[3] = delims[3]
+            if l > 4 and delims[4]: self._delims[4] = delims[4]
         return self
 
     
@@ -731,7 +742,7 @@ class Dromeo:
                     }
                     for v,g in captures:
                         if m.group( g ):
-                            if type and v in type and callable(type[ v ]):
+                            if type and (v in type) and type[ v ] and callable(type[ v ]):
                                 params['data'][ v ] = type[ v ]( m.group( g ) )
                             else:
                                 params['data'][ v ] = m.group( g )

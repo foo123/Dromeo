@@ -42,7 +42,7 @@ $dromeo
       //'method'=>'*',
       'handler'=>'routeHandler', 
       'defaults'=>array('foo'=>'moo','extra'=>'extra'),
-      'types'=>array('id'=> Dromeo::$TYPE['INTEGER'])
+      'types'=>array('id'=> Dromeo::TYPE('INTEGER'))
       )
     )
     ->one(
@@ -51,7 +51,7 @@ $dromeo
       //'method'=>'*',
       'handler'=>'routeHandler', 
       'defaults'=>array('foo'=>'moo','once'=>'once'),
-      'types'=>array('id'=> Dromeo::$TYPE['INTEGER'])
+      'types'=>array('id'=> Dromeo::TYPE('INTEGER'))
       )
     )
     ->on(
@@ -60,7 +60,7 @@ $dromeo
       //'method'=>'*',
       'handler'=>'routeHandler', 
       'defaults'=>array('foo'=>'moo','const_pattern'=>'const_pattern'),
-      'types'=>array('id'=> Dromeo::$TYPE['INTEGER'])
+      'types'=>array('id'=> Dromeo::TYPE('INTEGER'))
       )
     )
 ;

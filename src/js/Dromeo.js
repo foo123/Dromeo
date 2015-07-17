@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.1
+*   @version: 0.6.2
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -31,7 +31,7 @@ else if ( !(name in root) )
     /* module factory */        function( exports, undef ) {
 "use strict";
 
-var __version__ = "0.6.1", 
+var __version__ = "0.6.2", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -377,7 +377,7 @@ var __version__ = "0.6.1",
     makePattern = function( _delims, _patterns, pattern ) {
         var i, l, isPattern, p, m, numGroups = 0;
         
-        pattern = split( pattern, _delims[3] );
+        pattern = split( pattern, _delims[2], _delims[3] );
         p = [ ];
         l = pattern.length;
         isPattern = false;
@@ -441,7 +441,7 @@ var __version__ = "0.6.1",
                 isCaptured = false;
                 
                 // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
-                p = part.split( _delims[ 2 ] );
+                p = part.split( _delims[ 4 ] );
                 capturePattern = makePattern( _delims, _patterns, p[ 0 ] );
                 
                 if ( p.length > 1 )
@@ -561,7 +561,7 @@ function Route( route, pattern, captures, method, namespace )
 
 var Dromeo = function( route_prefix ) {
     var self = this;
-    self._delims = ['{', '}', ':', '%'];
+    self._delims = ['{', '}', '%', '%', ':'];
     self._patterns = { },
     self.definePattern( 'ALPHA',   '[a-zA-Z\\-_]+' );
     self.definePattern( 'NUMBR',   '[0-9]+' );
@@ -575,22 +575,26 @@ var Dromeo = function( route_prefix ) {
     self._fallback = false;
     self._prefix = route_prefix ? route_prefix : '';
 };
+
+// default typecasters
+function type_to_int( v ) { return parseInt(v, 10) || 0; }
+function type_to_str( v ) { return is_string(v) ? v : '' + String(v); }
+function type_to_array( v ) { return is_array(v) ? v : [v]; }
+function type_to_params( v ) { return is_string(v) ? Dromeo.unglue_params(v) : v; }
+
 Dromeo.VERSION = __version__;
 Dromeo.Route = Route;
-Dromeo.TYPE = {
-    'INTEGER': function( v ) {
-        return parseInt(v, 10);
-    }
-    ,'STRING': function( v ) {
-        return is_string(v) ? v : '' + String(v);
-    }
-    ,'ARRAY': function( v ) {
-        return is_array(v) ? v : [v];
-    }
-    ,'PARAMS': function( v ) {
-        return is_string(v) ? Dromeo.unglue_params(v) : v;
-    }
+Dromeo.TYPES = {
+ 'INTEGER'  : type_to_int
+,'STRING'   : type_to_str
+,'ARRAY'    : type_to_array
+,'PARAMS'   : type_to_params
 };
+// aliases
+Dromeo.TYPES['INT']         = Dromeo.TYPES['INTEGER'];
+Dromeo.TYPES['STR']         = Dromeo.TYPES['STRING'];
+Dromeo.TYPES['URLENCODED']  = Dromeo.TYPES['PARAMS'];
+
 // build/glue together a uri component from a params object
 Dromeo.glue_params = function( params ) {
     var component = '';
@@ -641,7 +645,11 @@ Dromeo.build_components = function( baseUrl, query, hash, q, h ) {
     return url;
 };
 Dromeo.defType = function( type, caster ) {
-    if ( type && is_callable(caster) ) Dromeo.TYPE[type] = caster;
+    if ( type && is_callable(caster) ) Dromeo.TYPES[ type ] = caster;
+};
+Dromeo.TYPE = function( type ) {
+    if ( type && Dromeo.TYPES[HAS](type) ) return Dromeo.TYPES[ type ];
+    return null;
 };
 Dromeo[PROTO] = {
     constructor: Dromeo,
@@ -703,6 +711,7 @@ Dromeo[PROTO] = {
             if ( l > 1 && delims[1] ) _delims[1] = delims[1];
             if ( l > 2 && delims[2] ) _delims[2] = delims[2];
             if ( l > 3 && delims[3] ) _delims[3] = delims[3];
+            if ( l > 4 && delims[4] ) _delims[4] = delims[4];
         }
         return self;
     },
@@ -942,7 +951,7 @@ Dromeo[PROTO] = {
                         g = route.captures[ v ];
                         if ( m[ g ] ) 
                         {
-                            if ( type && type[HAS]( v ) && is_callable(type[ v ]) )
+                            if ( type && type[HAS]( v ) && type[ v ] && is_callable(type[ v ]) )
                                 params.data[ v ] = type[ v ]( m[ g ] );
                             else
                                 params.data[ v ] = m[ g ];

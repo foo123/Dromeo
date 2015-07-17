@@ -65,7 +65,7 @@ dromeo
       // default params (if any)
       defaults: {'foo':'moo','extra-flag','extra'},
       // optional type-casting for certain matches
-      types: {'id': Dromeo.TYPE['INTEGER']}
+      types: {'id': Dromeo.TYPE('INTEGER')}
       }
     
     )
@@ -96,7 +96,7 @@ echo( dromeo.build(uri, {
 
 **output:**
 ```text
-Dromeo.VERSION = 0.6.1
+Dromeo.VERSION = 0.6.2
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo
@@ -170,7 +170,7 @@ http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&mo
 var router = new Dromeo( route_prefix='' );
 
 // set/define delimiters used in route-patterns, see examples
-router.defineDelimiters( ['{', '}', ':', '%'] );
+router.defineDelimiters( ['{', '}', '%', '%', ':'] );
 
 // define a (new) sub-pattern identified with className
 // sub-patterns are used in route-patterns, 
