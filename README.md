@@ -96,7 +96,7 @@ echo( dromeo.build(uri, {
 
 **output:**
 ```text
-Dromeo.VERSION = 0.6.2
+Dromeo.VERSION = 0.6.3
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo

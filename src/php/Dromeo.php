@@ -3,7 +3,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.2
+*   @version: 0.6.3
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -48,7 +48,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6.2";
+    const VERSION = "0.6.3";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(
@@ -541,10 +541,12 @@ class Dromeo
                     {
                         if ( isset( $m[ $g ] ) && $m[ $g ] ) 
                         {
-                            if ( $handler->types && isset($handler->types[$v]) && is_callable($handler->types[$v]) )
+                            if ( $handler->types && isset($handler->types[$v]) )
                             {
-                                $type = $handler->types[$v];
-                                $params['data'][ $v ] = call_user_func($type, $m[ $g ]);
+                                $typecaster = $handler->types[$v];
+                                if ( is_string($typecaster) && isset(self::$TYPES[$typecaster]) )
+                                    $typecaster = self::$TYPES[$typecaster];
+                                $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $g ]) : $m[ $g ];
                             }
                             else
                             {

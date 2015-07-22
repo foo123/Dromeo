@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.2
+*   @version: 0.6.3
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -31,7 +31,7 @@ else if ( !(name in root) )
     /* module factory */        function( exports, undef ) {
 "use strict";
 
-var __version__ = "0.6.2", 
+var __version__ = "0.6.3", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -128,21 +128,22 @@ var __version__ = "0.6.2",
     _patternOr = /^([a-zA-Z0-9-_]+\|[a-zA-Z0-9-_|]+)$/,
     _nested = /\[([^\]]*?)\]$/,
     _group = /\((\d+)\)$/,
+    trim_re = /^\s+|\s+$/g, re_escape = /([*+\[\]\(\)?^$\/\\:])/g,
     
     // auxilliaries
     PROTO = 'prototype', OP = Object[PROTO], AP = Array[PROTO], FP = Function[PROTO],
     toString = OP.toString, HAS = 'hasOwnProperty',
     isNode = "undefined" !== typeof(global) && '[object global]' == toString.call(global),
-    is_array = function( o ) { return ('[object Array]' === toString.call(o)) || (o instanceof Array); },
-    is_obj = function( o ) { return ('[object Object]' === toString.call(o)) || (o instanceof Object); },
-    is_string = function( o ) { return ('[object String]' === toString.call(o)) || (o instanceof String); },
-    is_number = function( o ) { return ('number' === typeof(o)) || (o instanceof Number); },
-    is_callable = function( o ) { return ('[object Function]' === toString.call(o)) || (o instanceof Function); },
+    is_array = function( o ) { return (o instanceof Array) || ('[object Array]' === toString.call(o)); },
+    is_obj = function( o ) { return (o instanceof Object) || ('[object Object]' === toString.call(o)); },
+    is_string = function( o ) { return (o instanceof String) || ('[object String]' === toString.call(o)); },
+    is_number = function( o ) { return (o instanceof Number) || ('[object Number]' === toString.call(o)); },
+    is_callable = function( o ) { return "function" === typeof o; },
     trim = String[PROTO].trim 
         ? function( s ) { return s.trim( ); }
-        : function( s ) { return s.replace(/^\s+|\s+$/g, ''); },
+        : function( s ) { return s.replace(trim_re, ''); },
     length = function( s ) { return s.length > 0; },
-    esc_regex = function( s ){ return s.replace(/([*+\[\]\(\)?^$\/\\:])/g, '\\$1'); },
+    esc_regex = function( s ){ return s.replace(re_escape, '\\$1'); },
     
     extend = function( o1, o2, deep ) {
         var k, v;
@@ -275,7 +276,7 @@ var __version__ = "0.6.2",
                 obj = array;
                 for (j=0, keysLen=keys.length; j<keysLen; j++) 
                 {
-                    key = keys[ j ].replace(/^['"]/, '').replace(/['"]$/, '');
+                    key = keys[ j ].replace(/^['"]|['"]$/g, '');
                     lastObj = obj;
                     
                     if ( ('' !== key && ' ' !== key) || 0 === j ) 
@@ -907,7 +908,7 @@ Dromeo[PROTO] = {
     route: function( r, method, breakOnFirstMatch ) {
         var self = this, routes, 
             route, params, defaults, type,
-            i, l, lh, h, m, v, g, 
+            i, l, lh, h, m, v, g, typecaster,
             handlers, handler, found;
         ;
         
@@ -951,10 +952,17 @@ Dromeo[PROTO] = {
                         g = route.captures[ v ];
                         if ( m[ g ] ) 
                         {
-                            if ( type && type[HAS]( v ) && type[ v ] && is_callable(type[ v ]) )
-                                params.data[ v ] = type[ v ]( m[ g ] );
+                            if ( type && type[HAS]( v ) && type[ v ] )
+                            {
+                                typecaster = type[ v ];
+                                if ( is_string(typecaster) && Dromeo.TYPES[HAS](typecaster) )
+                                    typecaster = Dromeo.TYPES[typecaster];
+                                params.data[ v ] = is_callable(typecaster) ? typecaster( m[ g ] ) : m[ g ];
+                            }
                             else
+                            {
                                 params.data[ v ] = m[ g ];
+                            }
                         }
                         else if ( !params.data[HAS]( v ) ) 
                         {

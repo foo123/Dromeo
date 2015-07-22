@@ -45,7 +45,7 @@ dromeo
       //method: '*',
       handler: routeHandler, 
       defaults: {'foo':'moo','extra':'extra'},
-      types: {'id': Dromeo.TYPE('INTEGER')}
+      types: {'id': 'INTEGER'}
       }
     )
     .one(

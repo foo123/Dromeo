@@ -42,7 +42,7 @@ $dromeo
       //'method'=>'*',
       'handler'=>'routeHandler', 
       'defaults'=>array('foo'=>'moo','extra'=>'extra'),
-      'types'=>array('id'=> Dromeo::TYPE('INTEGER'))
+      'types'=>array('id'=> 'INTEGER')
       )
     )
     ->one(

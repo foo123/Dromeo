@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6.2
+#   @version: 0.6.3
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -438,7 +438,10 @@ def clearRoute( handlers, routes, route, method ):
     del handlers[ route ]
 
 def type_to_int( v ):
-    v = int(v, 10)
+    try:
+        v = int(v, 10)
+    except ValueError:
+        v = 0
     return 0 if not v else v # take account of nan
     
 def type_to_str( v ):
@@ -457,7 +460,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6.2"
+    VERSION = "0.6.3"
     
     Route = Route
     
@@ -742,8 +745,11 @@ class Dromeo:
                     }
                     for v,g in captures:
                         if m.group( g ):
-                            if type and (v in type) and type[ v ] and callable(type[ v ]):
-                                params['data'][ v ] = type[ v ]( m.group( g ) )
+                            if type and (v in type) and type[ v ]:
+                                typecaster = type[ v ]
+                                if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
+                                    typecaster = Dromeo.TYPES[ typecaster ]
+                                params['data'][ v ] = typecaster( m.group( g ) ) if callable(typecaster) else m.group( g )
                             else:
                                 params['data'][ v ] = m.group( g )
                         elif v not in params['data']: 
