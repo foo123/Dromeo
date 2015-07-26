@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.3
+*   @version: 0.6.4
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -31,7 +31,7 @@ else if ( !(name in root) )
     /* module factory */        function( exports, undef ) {
 "use strict";
 
-var __version__ = "0.6.3", 
+var __version__ = "0.6.4", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -376,7 +376,7 @@ var __version__ = "0.6.3",
     },
     
     makePattern = function( _delims, _patterns, pattern ) {
-        var i, l, isPattern, p, m, numGroups = 0;
+        var i, l, isPattern, p, m, numGroups = 0, types = { };
         
         pattern = split( pattern, _delims[2], _delims[3] );
         p = [ ];
@@ -390,8 +390,10 @@ var __version__ = "0.6.3",
                 {
                     if ( _patterns[HAS]( pattern[ i ] ) )
                     {
-                        p.push( '(' + _patterns[ pattern[ i ] ] + ')' );
+                        p.push( '(' + _patterns[ pattern[ i ] ][ 0 ] + ')' );
                         numGroups++;
+                        // typecaster
+                        if ( _patterns[ pattern[ i ] ][ 1 ] ) types[numGroups] = _patterns[ pattern[ i ] ][ 1 ];
                     }
                     else if ( (m = pattern[ i ].match( _patternOr )) )
                     {
@@ -416,14 +418,20 @@ var __version__ = "0.6.3",
             }
         }
         if ( 1 === p.length && 1 === numGroups )
-            return [p.join(''), numGroups];
+        {
+            types[0] = types[1] ? types[1] : null;
+            return [p.join(''), numGroups, types];
+        }
         else
-            return ['(' + p.join('') + ')', numGroups+1];
+        {
+            types[0] = null;
+            return ['(' + p.join('') + ')', numGroups+1, types];
+        }
     },
 
     makeRoute = function( _delims, _patterns, route, method ) {
         var parts, part, i, l, isOptional, isCaptured,
-            isPattern, pattern, p, m, numGroups, 
+            isPattern, pattern, p, m, numGroups, patternTypecaster,
             captures, captureName, capturePattern, captureIndex
         ;
         parts = split( route, _delims[ 0 ], _delims[ 1 ] );
@@ -440,6 +448,7 @@ var __version__ = "0.6.3",
             {
                 isOptional = false;
                 isCaptured = false;
+                patternTypecaster = null;
                 
                 // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
                 p = part.split( _delims[ 4 ] );
@@ -455,6 +464,9 @@ var __version__ = "0.6.3",
                     {
                         captureName = captureName.slice(0, -m[0].length);
                         captureIndex = parseInt(m[1], 10);
+                        patternTypecaster = capturePattern[2][HAS](captureIndex) 
+                                ? capturePattern[2][captureIndex] 
+                                : null;
                         if ( captureIndex >= 0 && captureIndex < capturePattern[1] )
                         {
                             captureIndex += numGroups + 1;
@@ -466,6 +478,9 @@ var __version__ = "0.6.3",
                     }
                     else
                     {
+                        patternTypecaster = capturePattern[2][0] 
+                                ? capturePattern[2][0] 
+                                : null;
                         captureIndex = numGroups + 1;
                     }
                     
@@ -475,7 +490,7 @@ var __version__ = "0.6.3",
                 pattern += capturePattern[ 0 ];
                 numGroups += capturePattern[ 1 ];
                 if ( isOptional ) pattern += '?';
-                if ( isCaptured ) captures[ captureName ] = captureIndex;
+                if ( isCaptured ) captures[ captureName ] = [captureIndex, patternTypecaster];
                 isPattern = false;
             }
             else
@@ -564,12 +579,14 @@ var Dromeo = function( route_prefix ) {
     var self = this;
     self._delims = ['{', '}', '%', '%', ':'];
     self._patterns = { },
-    self.definePattern( 'ALPHA',   '[a-zA-Z\\-_]+' );
-    self.definePattern( 'NUMBR',   '[0-9]+' );
-    self.definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' );
-    self.definePattern( 'QUERY',   '\\?[^?#]+' );
-    self.definePattern( 'FRAGM',   '#[^?#]+' );
-    self.definePattern( 'PART',    '[^\\/?#]+' );
+    self.definePattern( 'ALPHA',      '[a-zA-Z\\-_]+' );
+    self.definePattern( 'ALNUM',      '[a-zA-Z0-9\\-_]+' );
+    self.definePattern( 'NUMBR',      '[0-9]+' );
+    self.definePattern( 'INT',        '[0-9]+',          'INT' );
+    self.definePattern( 'PART',       '[^\\/?#]+' );
+    self.definePattern( 'QUERY',      '\\?[^?#]+' );
+    self.definePattern( 'FRAGMENT',   '#[^?#]+' );
+    self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' );
     self.definePattern( 'ALL',     '.+' );
     self._handlers = { '*':{} };
     self._routes = [ ];
@@ -717,9 +734,15 @@ Dromeo[PROTO] = {
         return self;
     },
     
-    definePattern: function( className, subPattern )  {
+    definePattern: function( className, subPattern, typecaster )  {
         var self = this;
-        self._patterns[ className ] = subPattern;
+        if ( typecaster && 
+            is_string(typecaster) && typecaster.length &&
+            Dromeo.TYPES[HAS](typecaster) 
+        ) typecaster = Dromeo.TYPES[ typecaster ];
+        
+        if ( !typecaster || !is_callable(typecaster) ) typecaster = null;
+        self._patterns[ className ] = [subPattern, typecaster];
         return self;
     },
     
@@ -908,7 +931,7 @@ Dromeo[PROTO] = {
     route: function( r, method, breakOnFirstMatch ) {
         var self = this, routes, 
             route, params, defaults, type,
-            i, l, lh, h, m, v, g, typecaster,
+            i, l, lh, h, m, v, g, groupIndex, groupTypecaster, typecaster,
             handlers, handler, found;
         ;
         
@@ -950,18 +973,25 @@ Dromeo[PROTO] = {
                     {
                         if ( !route.captures[HAS](v) ) continue;
                         g = route.captures[ v ];
-                        if ( m[ g ] ) 
+                        groupIndex = g[0];
+                        groupTypecaster = g[1];
+                        if ( m[ groupIndex ] ) 
                         {
                             if ( type && type[HAS]( v ) && type[ v ] )
                             {
                                 typecaster = type[ v ];
                                 if ( is_string(typecaster) && Dromeo.TYPES[HAS](typecaster) )
                                     typecaster = Dromeo.TYPES[typecaster];
-                                params.data[ v ] = is_callable(typecaster) ? typecaster( m[ g ] ) : m[ g ];
+                                params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
+                            }
+                            else if ( groupTypecaster )
+                            {
+                                typecaster = groupTypecaster;
+                                params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
                             }
                             else
                             {
-                                params.data[ v ] = m[ g ];
+                                params.data[ v ] = m[ groupIndex ];
                             }
                         }
                         else if ( !params.data[HAS]( v ) ) 

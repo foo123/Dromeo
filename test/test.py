@@ -55,12 +55,12 @@ dromeo.fallback(
         fallbackHandler 
     ).on(
       {
-      'route':'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      'route':'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%INT%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
       # same as using
       #'method': '*',
       'handler':routeHandler, 
-      'defaults':{'foo':'moo','extra':'extra'},
-      'types':{'id': 'INTEGER'}
+      'defaults':{'foo':'moo','extra':'extra'}
+      #'types':{'id': 'INTEGER'}
       }
     ).one(
       {
@@ -69,7 +69,7 @@ dromeo.fallback(
       #'method': '*',
       'handler':routeHandler, 
       'defaults':{'foo':'moo','once':'once'},
-      'types':{'id': Dromeo.TYPE('INTEGER')}
+      'types':{'id': 'INTEGER'}
       }
     ).on(
       {

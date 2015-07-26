@@ -37,12 +37,12 @@ $dromeo->debug( );
 $dromeo
     ->fallback( 'fallbackHandler' )
     ->on(
-      array('route'=>'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      array('route'=>'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%INT%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
       // same as using
       //'method'=>'*',
       'handler'=>'routeHandler', 
-      'defaults'=>array('foo'=>'moo','extra'=>'extra'),
-      'types'=>array('id'=> 'INTEGER')
+      'defaults'=>array('foo'=>'moo','extra'=>'extra')
+      //'types'=>array('id'=> 'INTEGER')
       )
     )
     ->one(
@@ -51,7 +51,7 @@ $dromeo
       //'method'=>'*',
       'handler'=>'routeHandler', 
       'defaults'=>array('foo'=>'moo','once'=>'once'),
-      'types'=>array('id'=> Dromeo::TYPE('INTEGER'))
+      'types'=>array('id'=> 'INTEGER')
       )
     )
     ->on(

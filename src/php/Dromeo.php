@@ -3,7 +3,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.3
+*   @version: 0.6.4
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -48,7 +48,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6.3";
+    const VERSION = "0.6.4";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(
@@ -242,12 +242,14 @@ class Dromeo
     {
         $this->_delims = array('{', '}', '%', '%', ':');
         $this->_patterns = array( );
-        $this->definePattern( 'ALPHA',   '[a-zA-Z\\-_]+' );
-        $this->definePattern( 'NUMBR',   '[0-9]+' );
-        $this->definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' );
-        $this->definePattern( 'QUERY',   '\\?[^?#]+' );
-        $this->definePattern( 'FRAGM',   '#[^?#]+' );
-        $this->definePattern( 'PART',    '[^\\/?#]+' );
+        $this->definePattern( 'ALPHA',      '[a-zA-Z\\-_]+' );
+        $this->definePattern( 'ALNUM',      '[a-zA-Z0-9\\-_]+' );
+        $this->definePattern( 'NUMBR',      '[0-9]+' );
+        $this->definePattern( 'INT',        '[0-9]+',          'INT' );
+        $this->definePattern( 'PART',       '[^\\/?#]+' );
+        $this->definePattern( 'QUERY',      '\\?[^?#]+' );
+        $this->definePattern( 'FRAGMENT',   '#[^?#]+' );
+        $this->definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' );
         $this->definePattern( 'ALL',     '.+' );
         $this->_handlers = array( '*'=>array( ) );
         $this->_routes = array( );
@@ -300,9 +302,15 @@ class Dromeo
         return $this;
     }
     
-    public function definePattern( $className, $subPattern )
+    public function definePattern( $className, $subPattern, $typecaster=null )
     {
-        $this->_patterns[ $className ] = $subPattern;
+        if ( !empty($typecaster) && 
+            is_string($typecaster) && 
+            isset(self::$TYPES[$typecaster]) 
+        ) $typecaster = self::$TYPES[ $typecaster ];
+        
+        if ( empty($typecaster) || !is_callable($typecaster) ) $typecaster = null;
+        $this->_patterns[ $className ] = array($subPattern, $typecaster);
         return $this;
     }
     
@@ -539,18 +547,25 @@ class Dromeo
                     );
                     foreach ($route->captures as $v=>$g) 
                     {
-                        if ( isset( $m[ $g ] ) && $m[ $g ] ) 
+                        $groupIndex = $g[0];
+                        $groupTypecaster = $g[1];
+                        if ( isset( $m[ $groupIndex ] ) && $m[ $groupIndex ] ) 
                         {
                             if ( $handler->types && isset($handler->types[$v]) )
                             {
                                 $typecaster = $handler->types[$v];
                                 if ( is_string($typecaster) && isset(self::$TYPES[$typecaster]) )
                                     $typecaster = self::$TYPES[$typecaster];
-                                $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $g ]) : $m[ $g ];
+                                $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $groupIndex ]) : $m[ $groupIndex ];
+                            }
+                            elseif ( $groupTypecaster )
+                            {
+                                $typecaster = $groupTypecaster;
+                                $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $groupIndex ]) : $m[ $groupIndex ];
                             }
                             else
                             {
-                                $params['data'][ $v ] = $m[ $g ];
+                                $params['data'][ $v ] = $m[ $groupIndex ];
                             }
                         }
                         elseif ( !isset($params['data'][ $v ]) ) 
@@ -663,6 +678,7 @@ class Dromeo
             {
                 $isOptional = false;
                 $isCaptured = false;
+                $patternTypecaster = null;
                 
                 // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
                 $p = explode( $_delims[ 4 ], $part );
@@ -677,7 +693,10 @@ class Dromeo
                     if ( preg_match(self::$_group, $captureName, $m) )
                     {
                         $captureName = substr($captureName, 0, -strlen($m[0]));
-                        $captureIndex = intval($m[1]);
+                        $captureIndex = intval($m[1], 10);
+                        $patternTypecaster = isset($capturePattern[2][$captureIndex]) 
+                                ? $capturePattern[2][$captureIndex] 
+                                : null;
                         if ( $captureIndex >= 0 && $captureIndex < $capturePattern[1] )
                         {
                             $captureIndex += $numGroups + 1;
@@ -689,6 +708,9 @@ class Dromeo
                     }
                     else
                     {
+                        $patternTypecaster = $capturePattern[2][0]
+                                ? $capturePattern[2][0] 
+                                : null;
                         $captureIndex = $numGroups + 1;
                     }
                     
@@ -698,7 +720,7 @@ class Dromeo
                 $pattern .= $capturePattern[ 0 ];
                 $numGroups += $capturePattern[ 1 ];
                 if ( $isOptional ) $pattern .= '?';
-                if ( $isCaptured ) $captures[ $captureName ] = $captureIndex;
+                if ( $isCaptured ) $captures[ $captureName ] = array($captureIndex, $patternTypecaster);
                 $isPattern = false;
             }
             else
@@ -713,6 +735,7 @@ class Dromeo
     private static function makePattern( &$_delims, &$_patterns, $pattern ) 
     {
         $numGroups = 0;
+        $types = array( );
         $pattern = self::split( $pattern, $_delims[2], $_delims[3] );
         $p = array( );
         $l = count($pattern);
@@ -725,8 +748,10 @@ class Dromeo
                 {
                     if ( isset($_patterns[ $pattern[ $i ] ]) )
                     {
-                        $p[ ] = '(' . $_patterns[ $pattern[ $i ] ] . ')';
+                        $p[ ] = '(' . $_patterns[ $pattern[ $i ] ][ 0 ] . ')';
                         $numGroups++;
+                        // typecaster
+                        if ( $_patterns[ $pattern[ $i ] ][ 1 ] ) $types[$numGroups] = $_patterns[ $pattern[ $i ] ][ 1 ];
                     }
                     elseif ( preg_match( self::$_patternOr, $pattern[ $i ], $m ) )
                     {
@@ -751,9 +776,15 @@ class Dromeo
             }
         }
         if ( 1 === count($p) && 1 === $numGroups )
-            return array(implode('', $p), $numGroups);
+        {
+            $types[ 0 ] = isset($types[ 1 ]) ? $types[ 1 ] : null;
+            return array(implode('', $p), $numGroups, $types);
+        }
         else
-            return array('(' . implode('', $p) . ')', $numGroups+1);
+        {
+            $types[ 0 ] = null;
+            return array('(' . implode('', $p) . ')', $numGroups+1, $types);
+        }
     }
     
     private static function split( $s, $d1, $d2=null ) 

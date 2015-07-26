@@ -96,7 +96,7 @@ echo( dromeo.build(uri, {
 
 **output:**
 ```text
-Dromeo.VERSION = 0.6.3
+Dromeo.VERSION = 0.6.4
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo
@@ -178,12 +178,13 @@ router.defineDelimiters( ['{', '}', '%', '%', ':'] );
 // default sub-patterns:
 // ALPHA =>   "[a-zA-Z\\-_]+"            alphabetic only
 // NUMBR =>   "[0-9]+"                   numeric only
+// INT   =>   "[0-9]+"                   integer with associated optional typecaster
 // ALNUM =>   "[a-zA-Z0-9\\-_]+"         alpha-numeric only
 // QUERY =>   "\\?[^?#]+"                query part with leading '?'
-// FRAGM =>   "#[^?#]+"                  hash/fragment part with leading '#'
+// FRAGMENT =>"#[^?#]+"                  hash/fragment part with leading '#'
 // PART  =>   "[^\\/?#]+"                arbitrary path part (between /../)
 // ALL   =>   ".+"                       arbitrary sequence
-router.definePattern( className, subPattern );
+router.definePattern( className, subPattern [,typecaster=null] );
 
 // unset/remove the sub-pattern "clasName"
 router.dropPattern( className );

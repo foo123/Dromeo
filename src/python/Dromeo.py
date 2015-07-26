@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6.3
+#   @version: 0.6.4
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -326,6 +326,7 @@ def makePattern( delims, patterns, pattern ):
     global _G
     
     numGroups = 0
+    types = { }
     pattern = split( pattern, delims[2], delims[3] )
     p = [ ]
     isPattern = False
@@ -333,8 +334,10 @@ def makePattern( delims, patterns, pattern ):
         if isPattern:
             if len(pt):
                 if pt in patterns:
-                    p.append( '(' + patterns[ pt ] + ')' )
+                    p.append( '(' + patterns[ pt ][ 0 ] + ')' )
                     numGroups += 1
+                    # typecaster
+                    if patterns[ pt ][ 1 ]: types[str(numGroups)] = patterns[ pt ][ 1 ]
                 else:
                     m = _G.patternOr.match( pt )
                     if m:
@@ -349,9 +352,11 @@ def makePattern( delims, patterns, pattern ):
             isPattern = True
             
     if 1 == len(p) and 1 == numGroups:
-        return [''.join(p), numGroups]
+        types['0'] = types['1'] if '1' in types else None
+        return [''.join(p), numGroups, types]
     else:
-        return ['(' + ''.join(p) + ')', numGroups+1]
+        types['0'] = None
+        return ['(' + ''.join(p) + ')', numGroups+1, types]
 
 
 def makeRoute( delims, patterns, route, method=None ):
@@ -368,6 +373,7 @@ def makeRoute( delims, patterns, route, method=None ):
         if isPattern:
             isOptional = False
             isCaptured = False
+            patternTypecaster = None
             
             # http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
             p = part.split( delims[ 4 ] )
@@ -381,12 +387,14 @@ def makeRoute( delims, patterns, route, method=None ):
                 m = _G.group.search( captureName )
                 if m:
                     captureName = captureName[:-len(m.group(0))]
-                    captureIndex = int(m.group(1))
+                    captureIndex = int(m.group(1), 10)
+                    patternTypecaster = capturePattern[2][str(captureIndex)] if str(captureIndex) in capturePattern[2] else None
                     if captureIndex >= 0 and captureIndex < capturePattern[1]:
                         captureIndex += numGroups + 1
                     else:
                         captureIndex = numGroups + 1
                 else:
+                    patternTypecaster = capturePattern[2]['0'] if capturePattern[2]['0'] else None
                     captureIndex = numGroups + 1
                 
                 isCaptured = (len(captureName) > 0)
@@ -394,7 +402,7 @@ def makeRoute( delims, patterns, route, method=None ):
             pattern += capturePattern[ 0 ]
             numGroups += capturePattern[ 1 ]
             if isOptional: pattern += '?'
-            if isCaptured: captures[ captureName ] = captureIndex
+            if isCaptured: captures[ captureName ] = [captureIndex, patternTypecaster]
             isPattern = False
         else:
             pattern += re.escape( part )
@@ -460,7 +468,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6.3"
+    VERSION = "0.6.4"
     
     Route = Route
     
@@ -529,12 +537,14 @@ class Dromeo:
     def __init__( self, prefix='' ):
         self._delims = ['{', '}', '%', '%', ':']
         self._patterns = { }
-        self.definePattern( 'ALPHA',   '[a-zA-Z\\-_]+' )
-        self.definePattern( 'NUMBR',   '[0-9]+' )
-        self.definePattern( 'ALNUM',   '[a-zA-Z0-9\\-_]+' )
-        self.definePattern( 'QUERY',   '\\?[^?#]+' )
-        self.definePattern( 'FRAGM',   '#[^?#]+' )
-        self.definePattern( 'PART',    '[^\\/?#]+' )
+        self.definePattern( 'ALPHA',      '[a-zA-Z\\-_]+' )
+        self.definePattern( 'ALNUM',      '[a-zA-Z0-9\\-_]+' )
+        self.definePattern( 'NUMBR',      '[0-9]+' )
+        self.definePattern( 'INT',        '[0-9]+',          'INT' )
+        self.definePattern( 'PART',       '[^\\/?#]+' )
+        self.definePattern( 'QUERY',      '\\?[^?#]+' )
+        self.definePattern( 'FRAGMENT',   '#[^?#]+' )
+        self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' )
         self.definePattern( 'ALL',     '.+' )
         self._handlers = { '*':{} }
         self._routes = [ ]
@@ -576,8 +586,11 @@ class Dromeo:
         return self
 
     
-    def definePattern( self, className, subPattern ):
-        self._patterns[ className ] = subPattern
+    def definePattern( self, className, subPattern, typecaster=None ):
+        if typecaster and isinstance(typecaster, str) and typecaster in Dromeo.TYPES:
+            typecaster = Dromeo.TYPES[ typecaster ]
+        if not typecaster or not callable(typecaster): typecaster = None
+        self._patterns[ className ] = [subPattern, typecaster]
         return self
     
     
@@ -744,14 +757,19 @@ class Dromeo:
                         'data': copy.deepcopy(defaults)
                     }
                     for v,g in captures:
-                        if m.group( g ):
+                        groupIndex = g[0]
+                        groupTypecaster = g[1]
+                        if m.group( groupIndex ):
                             if type and (v in type) and type[ v ]:
                                 typecaster = type[ v ]
                                 if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
                                     typecaster = Dromeo.TYPES[ typecaster ]
-                                params['data'][ v ] = typecaster( m.group( g ) ) if callable(typecaster) else m.group( g )
+                                params['data'][ v ] = typecaster( m.group( groupIndex ) ) if callable(typecaster) else m.group( groupIndex )
+                            elif groupTypecaster:
+                                typecaster = groupTypecaster
+                                params['data'][ v ] = typecaster( m.group( groupIndex ) ) if callable(typecaster) else m.group( groupIndex )
                             else:
-                                params['data'][ v ] = m.group( g )
+                                params['data'][ v ] = m.group( groupIndex )
                         elif v not in params['data']: 
                             params['data'][ v ] = None
                     
