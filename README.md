@@ -1,7 +1,7 @@
 Dromeo
 ======
 
-A simple and flexible routing framework for PHP, Python, Node/JS, ActionScript(TODO)
+A simple and flexible pattern routing framework for PHP, Python, Node/JS, ActionScript(TODO)
 
 
 [Dromeo.js](https://raw.githubusercontent.com/foo123/Dromeo/master/src/js/Dromeo.js)
@@ -9,16 +9,19 @@ A simple and flexible routing framework for PHP, Python, Node/JS, ActionScript(T
 
 **see also:**  
 
-* [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP, Python, ActionScript
 * [Tao](https://github.com/foo123/Tao.js) A simple, tiny, isomorphic, precise and fast template engine for handling both string and live dom based templates
-* [ModelView](https://github.com/foo123/modelview.js) a light-weight and flexible MVVM framework for JavaScript/HTML5
+* [ModelView](https://github.com/foo123/modelview.js) light-weight, isomorphic &amp; flexible MVVM framework for JavaScript/HTML5
 * [ModelView MVC jQueryUI Widgets](https://github.com/foo123/modelview-widgets) plug-n-play, state-full, full-MVC widgets for jQueryUI using modelview.js (e.g calendars, datepickers, colorpickers, tables/grids, etc..) (in progress)
+* [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/JS, PHP, Python, ActionScript
+* [HtmlWidget](https://github.com/foo123/HtmlWidget) html widgets used as (template) plugins and/or standalone for PHP, Node/JS, Python both client and server-side
+* [Importer](https://github.com/foo123/Importer) simple class &amp; dependency manager and loader for PHP, Node/JS, Python
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for Node/JS, PHP, Python, ActionScript
 * [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for Node/JS, PHP, Python, ActionScript
-* [Xpresion](https://github.com/foo123/Xpresion) a simple and flexible eXpression parser engine (with custom functions and variables support) for PHP, Python, Node/JS, ActionScript
-* [Dialect](https://github.com/foo123/Dialect) a simple cross-platform SQL construction for PHP, Python, Node/JS, ActionScript (in progress)
+* [DateX](https://github.com/foo123/DateX) eXtended &amp; localised Date parsing, diffing, formatting and validation for Node/JS, Python, PHP
+* [Xpresion](https://github.com/foo123/Xpresion) eXpression parser engine (with custom functions &amp; variables support) for PHP, Python, Node/JS, ActionScript
+* [Dialect](https://github.com/foo123/Dialect) cross-platform SQL construction for PHP, Python, Node/JS
 * [Simulacra](https://github.com/foo123/Simulacra) a simulation, algebraic, probability and combinatorics PHP package for scientific computations
-* [Asynchronous](https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved and sequential tasks for JavaScript
+* [Asynchronous](https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved &amp; sequential tasks for JavaScript
 
 
 **Example:**
