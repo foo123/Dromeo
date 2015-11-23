@@ -3,7 +3,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.5
+*   @version: 0.6.6
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -48,7 +48,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6.5";
+    const VERSION = "0.6.6";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(

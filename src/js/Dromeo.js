@@ -2,36 +2,28 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.5
+*   @version: 0.6.6
 *
 *   https://github.com/foo123/Dromeo
 *
 **/
 !function( root, name, factory ) {
 "use strict";
-
-// export the module, umd-style (no other dependencies)
-var isCommonJS = ("object" === typeof(module)) && module.exports, 
-    isAMD = ("function" === typeof(define)) && define.amd, m;
-
-// CommonJS, node, etc..
-if ( isCommonJS ) 
-    module.exports = (module.$deps = module.$deps || {})[ name ] = module.$deps[ name ] || (factory.call( root, {NODE:module} ) || 1);
-
-// AMD, requireJS, etc..
-else if ( isAMD && ("function" === typeof(require)) && ("function" === typeof(require.specified)) && require.specified(name) ) 
-    define( name, ['require', 'exports', 'module'], function( require, exports, module ){ return factory.call( root, {AMD:module} ); } );
-
-// browser, web worker, etc.. + AMD, other loaders
-else if ( !(name in root) ) 
-    (root[ name ] = (m=factory.call( root, {} ) || 1)) && isAMD && define( name, [], function( ){ return m; } );
-
+var m;
+if ( ('undefined'!==typeof Components)&&('object'===typeof Components.classes)&&('object'===typeof Components.classesByID)&&Components.utils&&('function'===typeof Components.utils['import']) ) /* XPCOM */
+    (root.EXPORTED_SYMBOLS = [ name ]) && (root[ name ] = factory.call( root ));
+else if ( ('object'===typeof module)&&module.exports ) /* CommonJS */
+    module.exports = factory.call( root );
+else if ( ('function'===typeof(define))&&define.amd&&('function'===typeof(require))&&('function'===typeof(require.specified))&&require.specified(name) ) /* AMD */
+    define(name,['require','exports','module'],function( ){return factory.call( root );});
+else if ( !(name in root) ) /* Browser/WebWorker/.. */
+    (root[ name ] = (m=factory.call( root )))&&('function'===typeof(define))&&define.amd&&define(function( ){return m;} );
 }(  /* current root */          this, 
     /* module name */           "Dromeo",
-    /* module factory */        function( exports, undef ) {
+    /* module factory */        function( undef ) {
 "use strict";
 
-var __version__ = "0.6.5", 
+var __version__ = "0.6.6", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {

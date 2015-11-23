@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6.5
+#   @version: 0.6.6
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -468,7 +468,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6.5"
+    VERSION = "0.6.6"
     
     Route = Route
     
