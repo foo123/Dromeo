@@ -1,7 +1,7 @@
-Dromeo.VERSION = 0.6.4
+Dromeo.VERSION = 0.6.7
 
 Route Handler Called
-Route: http://abc.org/users/abcd12/23/soo
+Route: http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar
 Params: Array
 (
     [foo] => soo
@@ -9,11 +9,12 @@ Params: Array
     [group] => users
     [user] => abcd12
     [id] => 23
-    [rest] => 
+    [preview] => prev iew
+    [rest] => &foo=bar
 )
 
 Route Handler Called
-Route: http://abc.org/users/abcd12/23/soo
+Route: http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar
 Params: Array
 (
     [foo] => soo
@@ -21,11 +22,11 @@ Params: Array
     [group] => users
     [user] => abcd12
     [id] => 23
-    [rest] => 
+    [rest] => ?preview=prev+iew&foo=bar
 )
 
 Route Handler Called
-Route: http://abc.org/users/abcd12/23/soo
+Route: http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar
 Params: Array
 (
     [foo] => soo
@@ -33,11 +34,11 @@ Params: Array
     [group] => users
     [user] => abcd12
     [id] => 23
-    [rest] => 
+    [rest] => ?preview=prev+iew&foo=bar
 )
 
 Route Handler Called
-Route: http://abc.org/users/abcd12/23/
+Route: http://abc.org/users/abcd12/23/?preview=preview&foo=bar
 Params: Array
 (
     [foo] => moo
@@ -45,11 +46,12 @@ Params: Array
     [group] => users
     [user] => abcd12
     [id] => 23
-    [rest] => /
+    [preview] => 
+    [rest] => /?preview=preview&foo=bar
 )
 
 Route Handler Called
-Route: http://abc.org/users/abcd12/23/
+Route: http://abc.org/users/abcd12/23/?preview=preview&foo=bar
 Params: Array
 (
     [foo] => moo
@@ -57,7 +59,7 @@ Params: Array
     [group] => users
     [user] => abcd12
     [id] => 23
-    [rest] => /
+    [rest] => /?preview=preview&foo=bar
 )
 
 Route Handler Called
@@ -69,6 +71,7 @@ Params: Array
     [group] => users
     [user] => abcd12
     [id] => 23
+    [preview] => 
     [rest] => 
 )
 

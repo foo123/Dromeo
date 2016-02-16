@@ -1,8 +1,8 @@
 /**
 *
 *   Dromeo
-*   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.6
+*   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
+*   @version: 0.6.7
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -23,7 +23,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
     /* module factory */        function( undef ) {
 "use strict";
 
-var __version__ = "0.6.6", 
+var __version__ = "0.6.7", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -117,7 +117,7 @@ var __version__ = "0.6.6",
     ,599: "Network connect timeout error"
     },
     
-    _patternOr = /^([a-zA-Z0-9-_]+\|[a-zA-Z0-9-_|]+)$/,
+    _patternOr = /^([^|]+\|.+)$/,
     _nested = /\[([^\]]*?)\]$/,
     _group = /\((\d+)\)$/,
     trim_re = /^\s+|\s+$/g, re_escape = /([*+\[\]\(\)?^$\/\\:])/g,
@@ -578,6 +578,7 @@ var Dromeo = function Dromeo( route_prefix ) {
     self.definePattern( 'NUMBR',      '[0-9]+' );
     self.definePattern( 'INT',        '[0-9]+',          'INT' );
     self.definePattern( 'PART',       '[^\\/?#]+' );
+    self.definePattern( 'VAR',        '[^=?&#\\/]+',     'VAR' );
     self.definePattern( 'QUERY',      '\\?[^?#]+' );
     self.definePattern( 'FRAGMENT',   '#[^?#]+' );
     self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' );
@@ -592,6 +593,7 @@ var Dromeo = function Dromeo( route_prefix ) {
 // default typecasters
 function type_to_int( v ) { return parseInt(v, 10) || 0; }
 function type_to_str( v ) { return is_string(v) ? v : '' + String(v); }
+function type_to_urldecode( v ) { return urldecode(v); }
 function type_to_array( v ) { return is_array(v) ? v : [v]; }
 function type_to_params( v ) { return is_string(v) ? Dromeo.unglue_params(v) : v; }
 
@@ -600,12 +602,14 @@ Dromeo.Route = Route;
 Dromeo.TYPES = {
  'INTEGER'  : type_to_int
 ,'STRING'   : type_to_str
+,'URLDECODE': type_to_urldecode
 ,'ARRAY'    : type_to_array
 ,'PARAMS'   : type_to_params
 };
 // aliases
 Dromeo.TYPES['INT']         = Dromeo.TYPES['INTEGER'];
 Dromeo.TYPES['STR']         = Dromeo.TYPES['STRING'];
+Dromeo.TYPES['VAR']         = Dromeo.TYPES['URLDECODE'];
 Dromeo.TYPES['URLENCODED']  = Dromeo.TYPES['PARAMS'];
 
 // build/glue together a uri component from a params object

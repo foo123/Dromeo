@@ -2,8 +2,8 @@
 /**
 *
 *   Dromeo
-*   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-*   @version: 0.6.6
+*   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
+*   @version: 0.6.7
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -48,7 +48,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6.6";
+    const VERSION = "0.6.7";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(
@@ -142,7 +142,7 @@ class Dromeo
     ,599=> "Network connect timeout error"
     );
     
-    private static $_patternOr = '/^([a-zA-Z0-9-_]+\\|[a-zA-Z0-9-_|]+)$/';
+    private static $_patternOr = '/^([^|]+\\|.+)$/';
     private static $_group = '/\\((\\d+)\\)$/';
     
     private $_delims = null;
@@ -212,6 +212,11 @@ class Dromeo
         return !$v ? 0 : $v; // take account of nan to 0
     }
     
+    public static function type_to_urldecode($v)
+    {
+        return urldecode($v);
+    }
+    
     public static function type_to_str($v)
     {
         return is_string($v) ? $v : strval($v);
@@ -253,6 +258,7 @@ class Dromeo
         $this->definePattern( 'NUMBR',      '[0-9]+' );
         $this->definePattern( 'INT',        '[0-9]+',          'INT' );
         $this->definePattern( 'PART',       '[^\\/?#]+' );
+        $this->definePattern( 'VAR',        '[^=?&#\\/]+',     'VAR' );
         $this->definePattern( 'QUERY',      '\\?[^?#]+' );
         $this->definePattern( 'FRAGMENT',   '#[^?#]+' );
         $this->definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' );
@@ -815,10 +821,12 @@ class Dromeo
 }
 Dromeo::$TYPES['INTEGER']   = array('Dromeo','type_to_int');
 Dromeo::$TYPES['STRING']    = array('Dromeo','type_to_str');
+Dromeo::$TYPES['URLDECODE'] = array('Dromeo','type_to_urldecode');
 Dromeo::$TYPES['ARRAY']     = array('Dromeo','type_to_array');
 Dromeo::$TYPES['PARAMS']    = array('Dromeo','type_to_params');
 // aliases
 Dromeo::$TYPES['INT']       = Dromeo::$TYPES['INTEGER'];
 Dromeo::$TYPES['STR']       = Dromeo::$TYPES['STRING'];
+Dromeo::$TYPES['VAR']       = Dromeo::$TYPES['URLDECODE'];
 Dromeo::$TYPES['URLENCODED']= Dromeo::$TYPES['PARAMS'];
 }

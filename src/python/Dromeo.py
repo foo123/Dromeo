@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6.6
+#   @version: 0.6.7
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -161,7 +161,7 @@ class _G:
     uriComponent = ['source', 'scheme', 'authority', 'userInfo', 'user', 'pass', 'host', 'port',
         'relative', 'path', 'directory', 'file', 'query', 'fragment']
         
-    patternOr = re.compile(r'^([a-zA-Z0-9-_]+\|[a-zA-Z0-9-_|]+)$')
+    patternOr = re.compile(r'^([^|]+\|.+)$')
     nested = re.compile(r'\[([^\]]*?)\]$')
     group = re.compile(r'\((\d+)\)$')
     digit = re.compile(r'^\d+$')
@@ -455,6 +455,9 @@ def type_to_int( v ):
 def type_to_str( v ):
     return v if isinstance(v, str) else str(v)
     
+def type_to_urldecode( v ):
+    return urldecode(v)
+    
 def type_to_array( v ):
     return v if isinstance(v, (list,tuple)) else [v]
     
@@ -468,19 +471,21 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6.6"
+    VERSION = "0.6.7"
     
     Route = Route
     
     TYPES = {
     'INTEGER'   : type_to_int,
     'STRING'    : type_to_str,
+    'URLDECODE' : type_to_urldecode,
     'ARRAY'     : type_to_array,
     'PARAMS'    : type_to_params
     # aliases
     ,
     'INT'       : type_to_int,
     'STR'       : type_to_str,
+    'VAR'       : type_to_urldecode,
     'URLENCODED': type_to_params
     }
     
@@ -542,6 +547,7 @@ class Dromeo:
         self.definePattern( 'NUMBR',      '[0-9]+' )
         self.definePattern( 'INT',        '[0-9]+',          'INT' )
         self.definePattern( 'PART',       '[^\\/?#]+' )
+        self.definePattern( 'VAR',        '[^=?&#\\/]+',     'VAR' )
         self.definePattern( 'QUERY',      '\\?[^?#]+' )
         self.definePattern( 'FRAGMENT',   '#[^?#]+' )
         self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' )

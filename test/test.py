@@ -55,7 +55,7 @@ dromeo.fallback(
         fallbackHandler 
     ).on(
       {
-      'route':'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%INT%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
+      'route':'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%INT%:id}{/%moo|soo|too%:?foo(1)}{%?|&%preview=%VAR%:?preview(2)}{%ALL%:?rest}', 
       # same as using
       #'method': '*',
       'handler':routeHandler, 
@@ -82,8 +82,8 @@ dromeo.fallback(
       }
     )
 
-dromeo.route( 'http://abc.org/users/abcd12/23/soo', '*', False )
-dromeo.route( 'http://abc.org/users/abcd12/23/', '*', False )
+dromeo.route( 'http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar', '*', False )
+dromeo.route( 'http://abc.org/users/abcd12/23/?preview=preview&foo=bar', '*', False )
 dromeo.route( 'http://abc.org/users/abcd12/23', '*', False )
 
 
