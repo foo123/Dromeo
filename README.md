@@ -163,6 +163,8 @@ http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&mo
 
 **Methods:**
 
+* `Dromeo` is also a `XPCOM JavaScript Component` (Firefox) (e.g to be used in firefox browser addons/plugins)
+
 ```javascript
 
 // -- instance methods --
