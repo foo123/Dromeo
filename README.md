@@ -21,7 +21,7 @@ A simple and flexible pattern routing framework for PHP, Python, Node/XPCOM/JS, 
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for Node/XPCOM/JS, PHP, Python, ActionScript
 * [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for Node/XPCOM/JS, PHP, Python, ActionScript
 * [DateX](https://github.com/foo123/DateX) eXtended &amp; localised Date parsing, diffing, formatting and validation for Node/XPCOM/JS, Python, PHP
-* [GrammarTemplate](https://github.com/foo123/grammar-template) versatile and intuitive grammar-based templating for PHP, Python, Node/XPCOM/JS, ActionScript
+* [GrammarTemplate](https://github.com/foo123/GrammarTemplate) versatile and intuitive grammar-based templating for PHP, Python, Node/XPCOM/JS, ActionScript
 * [Xpresion](https://github.com/foo123/Xpresion) eXpression parser engine (with custom functions &amp; variables support) for PHP, Python, Node/XPCOM/JS, ActionScript
 * [Dialect](https://github.com/foo123/Dialect) cross-platform SQL construction for PHP, Python, Node/XPCOM/JS
 * [Simulacra](https://github.com/foo123/Simulacra) a simulation, algebraic, probability and combinatorics PHP package for scientific computations
