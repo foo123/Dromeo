@@ -6,6 +6,7 @@ A simple and flexible pattern routing framework for PHP, Python, Node/XPCOM/JS, 
 
 ![Dromeo](/dromeo.jpg)
 
+[Etymology of *"dromos"* (path)](https://en.wiktionary.org/wiki/%CE%B4%CF%81%CF%8C%CE%BC%CE%BF%CF%82#Ancient_Greek)
 
 [Dromeo.js](https://raw.githubusercontent.com/foo123/Dromeo/master/src/js/Dromeo.js)
 
