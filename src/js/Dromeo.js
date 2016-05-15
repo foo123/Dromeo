@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
-*   @version: 0.6.7
+*   @version: 0.6.8
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -23,7 +23,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
     /* module factory */        function( undef ) {
 "use strict";
 
-var __version__ = "0.6.7", 
+var __version__ = "0.6.8", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -426,6 +426,11 @@ var __version__ = "0.6.7",
             isPattern, pattern, p, m, numGroups, patternTypecaster,
             captures, captureName, capturePattern, captureIndex
         ;
+        if ( 0 > route.indexOf(_delims[ 0 ]) )
+        {
+            // literal route
+            return new Route( route, route, {}, method, true );
+        }
         parts = split( route, _delims[ 0 ], _delims[ 1 ] );
         l = parts.length;
         isPattern = false;
@@ -491,7 +496,7 @@ var __version__ = "0.6.7",
                 isPattern = true;
             }
         }
-        return new Route( route, new RegExp('^' + pattern + '$'), captures, method );
+        return new Route( route, new RegExp('^' + pattern + '$'), captures, method, false );
     },
     
     clearRoute = function( handlers, routes, route, method ) {
@@ -546,7 +551,7 @@ var __version__ = "0.6.7",
     }
 ;
 
-function Route( route, pattern, captures, method, namespace ) 
+function Route( route, pattern, captures, method, literal, namespace ) 
 {
     var self = this;
     self.handlers = [ ];
@@ -554,6 +559,7 @@ function Route( route, pattern, captures, method, namespace )
     self.pattern = pattern;
     self.captures = captures;
     self.method = method ? method.toLowerCase( ) : '*';
+    self.literal = true === literal;
     self.namespace = namespace || null;
     
     self.dispose = function( ) {
@@ -562,6 +568,7 @@ function Route( route, pattern, captures, method, namespace )
         self.pattern = null;
         self.captures = null;
         self.method = null;
+        self.literal = null;
         self.namespace = null;
         return self;
     };
@@ -944,8 +951,9 @@ Dromeo[PROTO] = {
             for (i=0; i<l; i++) 
             {
                 route = routes[ i ];
-                if ( method !== route.method && '*' !== route.method ) continue;
-                if ( !(m = r.match(route.pattern)) ) continue;
+                if ( (method !== route.method) && ('*' !== route.method) ) continue;
+                m = route.literal ? (route.pattern === r ? [] : null) : r.match(route.pattern);
+                if ( null == m ) continue;
                 
                 found = true;
                 
@@ -968,34 +976,37 @@ Dromeo[PROTO] = {
                         fallback: false,
                         data: extend({}, defaults, true)
                     };
-                    for (v in route.captures) 
+                    if ( !route.literal )
                     {
-                        if ( !route.captures[HAS](v) ) continue;
-                        g = route.captures[ v ];
-                        groupIndex = g[0];
-                        groupTypecaster = g[1];
-                        if ( m[ groupIndex ] ) 
+                        for (v in route.captures) 
                         {
-                            if ( type && type[HAS]( v ) && type[ v ] )
+                            if ( !route.captures[HAS](v) ) continue;
+                            g = route.captures[ v ];
+                            groupIndex = g[0];
+                            groupTypecaster = g[1];
+                            if ( m[ groupIndex ] ) 
                             {
-                                typecaster = type[ v ];
-                                if ( is_string(typecaster) && Dromeo.TYPES[HAS](typecaster) )
-                                    typecaster = Dromeo.TYPES[typecaster];
-                                params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
+                                if ( type && type[HAS]( v ) && type[ v ] )
+                                {
+                                    typecaster = type[ v ];
+                                    if ( is_string(typecaster) && Dromeo.TYPES[HAS](typecaster) )
+                                        typecaster = Dromeo.TYPES[typecaster];
+                                    params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
+                                }
+                                else if ( groupTypecaster )
+                                {
+                                    typecaster = groupTypecaster;
+                                    params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
+                                }
+                                else
+                                {
+                                    params.data[ v ] = m[ groupIndex ];
+                                }
                             }
-                            else if ( groupTypecaster )
+                            else if ( !params.data[HAS]( v ) ) 
                             {
-                                typecaster = groupTypecaster;
-                                params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
+                                params.data[ v ] = null;
                             }
-                            else
-                            {
-                                params.data[ v ] = m[ groupIndex ];
-                            }
-                        }
-                        else if ( !params.data[HAS]( v ) ) 
-                        {
-                            params.data[ v ] = null;
                         }
                     }
                     

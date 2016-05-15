@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6.7
+#   @version: 0.6.8
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -170,12 +170,13 @@ class _G:
 
 class Route:
     
-    def __init__( self, route, pattern, captures, method="*", namespace=None ):
+    def __init__( self, route, pattern, captures, method="*", literal=False, namespace=None ):
         self.handlers = [ ]
         self.route = route
         self.pattern = pattern
         self.captures = captures
         self.method = str(method).lower() if method else "*"
+        self.literal = literal is True
         self.namespace = namespace
     
     def __del__(self):
@@ -187,6 +188,7 @@ class Route:
         self.pattern = None
         self.captures = None
         self.method = None
+        self.literal = None
         self.namespace = None
         return self
 
@@ -362,6 +364,10 @@ def makePattern( delims, patterns, pattern ):
 def makeRoute( delims, patterns, route, method=None ):
     global _G
     
+    if delims[ 0 ] not in route:
+        # literal route
+        return Route( route, route, {}, method, True )
+        
     parts = split( route, delims[ 0 ], delims[ 1 ] )
     isPattern = False
     pattern = ''
@@ -408,7 +414,7 @@ def makeRoute( delims, patterns, route, method=None ):
             pattern += re.escape( part )
             isPattern = True
     
-    return Route( route, re.compile('^' + pattern + '$'), captures, method )
+    return Route( route, re.compile('^' + pattern + '$'), captures, method, False )
 
 
 def addRoute( handlers, routes, delims, patterns, prefix, route, oneOff=False ):
@@ -471,7 +477,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6.7"
+    VERSION = "0.6.8"
     
     Route = Route
     
@@ -739,7 +745,7 @@ class Dromeo:
             found = False
             for route in routes:
                 if method != route.method and '*' != route.method: continue
-                m = route.pattern.match( r )
+                m = (True if route.pattern == r else False) if route.literal else route.pattern.match( r )
                 if not m: continue
                 
                 found = True
@@ -762,22 +768,23 @@ class Dromeo:
                         'fallback': False,
                         'data': copy.deepcopy(defaults)
                     }
-                    for v,g in captures:
-                        groupIndex = g[0]
-                        groupTypecaster = g[1]
-                        if m.group( groupIndex ):
-                            if type and (v in type) and type[ v ]:
-                                typecaster = type[ v ]
-                                if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
-                                    typecaster = Dromeo.TYPES[ typecaster ]
-                                params['data'][ v ] = typecaster( m.group( groupIndex ) ) if callable(typecaster) else m.group( groupIndex )
-                            elif groupTypecaster:
-                                typecaster = groupTypecaster
-                                params['data'][ v ] = typecaster( m.group( groupIndex ) ) if callable(typecaster) else m.group( groupIndex )
-                            else:
-                                params['data'][ v ] = m.group( groupIndex )
-                        elif v not in params['data']: 
-                            params['data'][ v ] = None
+                    if not route.literal:
+                        for v,g in captures:
+                            groupIndex = g[0]
+                            groupTypecaster = g[1]
+                            if m.group( groupIndex ):
+                                if type and (v in type) and type[ v ]:
+                                    typecaster = type[ v ]
+                                    if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
+                                        typecaster = Dromeo.TYPES[ typecaster ]
+                                    params['data'][ v ] = typecaster( m.group( groupIndex ) ) if callable(typecaster) else m.group( groupIndex )
+                                elif groupTypecaster:
+                                    typecaster = groupTypecaster
+                                    params['data'][ v ] = typecaster( m.group( groupIndex ) ) if callable(typecaster) else m.group( groupIndex )
+                                else:
+                                    params['data'][ v ] = m.group( groupIndex )
+                            elif v not in params['data']: 
+                                params['data'][ v ] = None
                     
                     handler[4] = 1 # handler called
                     handler[0]( params )

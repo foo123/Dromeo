@@ -1,4 +1,4 @@
-Dromeo.VERSION = 0.6.7
+Dromeo.VERSION = 0.6.8
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar
@@ -85,6 +85,14 @@ Params: Array
     [user] => abcd12
     [id] => 23
     [rest] => 
+)
+
+Literal Route Handler Called
+Route: http://literal.abc.org/
+Params: Array
+(
+    [foo] => moo
+    [extra] => extra
 )
 
 

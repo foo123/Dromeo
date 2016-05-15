@@ -3,7 +3,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
-*   @version: 0.6.7
+*   @version: 0.6.8
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -17,15 +17,17 @@ class DromeoRoute
     public $captures = null;
     public $handlers = null;
     public $method = null;
+    public $literal = null;
     public $namespace = null;
     
-    public function __construct( $route, $pattern, $captures, $method="*", $namespace=null ) 
+    public function __construct( $route, $pattern, $captures, $method="*", $literal=false, $namespace=null ) 
     {
         $this->handlers = array( );
         $this->route = $route;
         $this->pattern = $pattern;
         $this->captures = $captures;
         $this->method = $method && strlen($method) ? strtolower($method) : "*";
+        $this->literal = true === $literal;
         $this->namespace = $namespace;
     }
     
@@ -41,6 +43,7 @@ class DromeoRoute
         $this->pattern = null;
         $this->captures = null;
         $this->method = null;
+        $this->literal = null;
         $this->namespace = null;
         return $this;
     }
@@ -48,7 +51,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6.7";
+    const VERSION = "0.6.8";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(
@@ -535,7 +538,8 @@ class Dromeo
             foreach ($routes as $route) 
             {
                 if ( $method !== $route->method && '*' !== $route->method ) continue;
-                if ( !preg_match($route->pattern, $r, $m, 0, 0) ) continue;
+                $matched = $route->literal ? ($route->pattern === $r) : preg_match($route->pattern, $r, $m, 0, 0);
+                if ( !$matched  ) continue;
 
                 $found = true;
                 
@@ -557,32 +561,35 @@ class Dromeo
                         'fallback'=> false,
                         'data'=> array_merge_recursive(array(), $handler->defaults)
                     );
-                    foreach ($route->captures as $v=>$g) 
+                    if ( !$route->literal )
                     {
-                        $groupIndex = $g[0];
-                        $groupTypecaster = $g[1];
-                        if ( isset( $m[ $groupIndex ] ) && $m[ $groupIndex ] ) 
+                        foreach ($route->captures as $v=>$g) 
                         {
-                            if ( $handler->types && isset($handler->types[$v]) )
+                            $groupIndex = $g[0];
+                            $groupTypecaster = $g[1];
+                            if ( isset( $m[ $groupIndex ] ) && $m[ $groupIndex ] ) 
                             {
-                                $typecaster = $handler->types[$v];
-                                if ( is_string($typecaster) && isset(self::$TYPES[$typecaster]) )
-                                    $typecaster = self::$TYPES[$typecaster];
-                                $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $groupIndex ]) : $m[ $groupIndex ];
+                                if ( $handler->types && isset($handler->types[$v]) )
+                                {
+                                    $typecaster = $handler->types[$v];
+                                    if ( is_string($typecaster) && isset(self::$TYPES[$typecaster]) )
+                                        $typecaster = self::$TYPES[$typecaster];
+                                    $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $groupIndex ]) : $m[ $groupIndex ];
+                                }
+                                elseif ( $groupTypecaster )
+                                {
+                                    $typecaster = $groupTypecaster;
+                                    $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $groupIndex ]) : $m[ $groupIndex ];
+                                }
+                                else
+                                {
+                                    $params['data'][ $v ] = $m[ $groupIndex ];
+                                }
                             }
-                            elseif ( $groupTypecaster )
+                            elseif ( !isset($params['data'][ $v ]) ) 
                             {
-                                $typecaster = $groupTypecaster;
-                                $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $groupIndex ]) : $m[ $groupIndex ];
+                                $params['data'][ $v ] = null;
                             }
-                            else
-                            {
-                                $params['data'][ $v ] = $m[ $groupIndex ];
-                            }
-                        }
-                        elseif ( !isset($params['data'][ $v ]) ) 
-                        {
-                            $params['data'][ $v ] = null;
                         }
                     }
                     
@@ -676,6 +683,12 @@ class Dromeo
 
     private static function makeRoute( &$_delims, &$_patterns, $route, $method=null )
     {
+        if ( false === strpos($route, $_delims[ 0 ]) )
+        {
+            // literal route
+            return new DromeoRoute( $route, $route, array(), $method, true );
+        }
+        
         $parts = self::split( $route, $_delims[ 0 ], $_delims[ 1 ] );
         $l = count($parts);
         $isPattern = false;
@@ -741,7 +754,7 @@ class Dromeo
                 $isPattern = true;
             }
         }
-        return new DromeoRoute( $route, '/^' . $pattern . '$/', $captures, $method );
+        return new DromeoRoute( $route, '/^' . $pattern . '$/', $captures, $method, false );
     }
     
     private static function makePattern( &$_delims, &$_patterns, $pattern ) 
