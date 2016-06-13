@@ -3,7 +3,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
-*   @version: 0.6.8
+*   @version: 0.6.9
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -12,6 +12,8 @@ if (!class_exists('Dromeo'))
 {
 class DromeoRoute
 {
+    private $__args__ = null;
+    public $isParsed = false;
     public $route = null;
     public $pattern = null;
     public $captures = null;
@@ -20,15 +22,29 @@ class DromeoRoute
     public $literal = null;
     public $namespace = null;
     
-    public function __construct( $route, $pattern, $captures, $method="*", $literal=false, $namespace=null ) 
+    public function __construct( $delims, $patterns, $route, $method="*"/*$route, $pattern, $captures, $method="*", $literal=false, $namespace=null*/ ) 
     {
+        $this->__args__ = array( $delims, $patterns );
+        $this->isParsed = false; // lazy init
         $this->handlers = array( );
         $this->route = $route;
-        $this->pattern = $pattern;
-        $this->captures = $captures;
         $this->method = $method && strlen($method) ? strtolower($method) : "*";
-        $this->literal = true === $literal;
-        $this->namespace = $namespace;
+        $this->pattern = null;
+        $this->captures = null;
+        $this->literal = false;
+        $this->namespace = null;
+    }
+    
+    public function parse( )
+    {
+        if ( $this->isParsed ) return $this;
+        $r = Dromeo::makeRoute( $this->__args__[0], $this->__args__[1], $this->route, $this->method );
+        $this->pattern = $r[ 1 ];
+        $this->captures = $r[ 2 ];
+        $this->literal = true === $r[ 4 ];
+        $this->__args__ = null;
+        $this->isParsed = true;
+        return $this;
     }
     
     public function __destruct()
@@ -38,6 +54,8 @@ class DromeoRoute
     
     public function dispose( ) 
     {
+        $this->__args__ = null;
+        $this->isParsed = null;
         $this->handlers = null;
         $this->route = null;
         $this->pattern = null;
@@ -51,7 +69,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6.8";
+    const VERSION = "0.6.9";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(
@@ -538,6 +556,7 @@ class Dromeo
             foreach ($routes as $route) 
             {
                 if ( $method !== $route->method && '*' !== $route->method ) continue;
+                if ( !$route->isParsed ) $route->parse( ); // lazy init
                 $matched = $route->literal ? ($route->pattern === $r) : preg_match($route->pattern, $r, $m, 0, 0);
                 if ( !$matched  ) continue;
 
@@ -660,7 +679,7 @@ class Dromeo
             }
             else
             {
-                $h[ $route ] = self::makeRoute( $delims, $patterns, $route, $method );
+                $h[ $route ] = new DromeoRoute( $delims, $patterns, $route, $method );
                 $h[ $route ]->handlers[] = (object)array(
                     'handler'=>$handler, 
                     'defaults'=>$defaults, 
@@ -681,12 +700,12 @@ class Dromeo
         }
     }
 
-    private static function makeRoute( &$_delims, &$_patterns, $route, $method=null )
+    public static function makeRoute( &$_delims, &$_patterns, $route, $method=null )
     {
         if ( false === strpos($route, $_delims[ 0 ]) )
         {
             // literal route
-            return new DromeoRoute( $route, $route, array(), $method, true );
+            return array( $route, $route, array(), $method, true );
         }
         
         $parts = self::split( $route, $_delims[ 0 ], $_delims[ 1 ] );
@@ -754,7 +773,7 @@ class Dromeo
                 $isPattern = true;
             }
         }
-        return new DromeoRoute( $route, '/^' . $pattern . '$/', $captures, $method, false );
+        return array( $route, '/^' . $pattern . '$/', $captures, $method, false );
     }
     
     private static function makePattern( &$_delims, &$_patterns, $pattern ) 

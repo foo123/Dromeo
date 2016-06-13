@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
-*   @version: 0.6.8
+*   @version: 0.6.9
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -23,7 +23,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
     /* module factory */        function( undef ) {
 "use strict";
 
-var __version__ = "0.6.8", 
+var __version__ = "0.6.9", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -429,7 +429,7 @@ var __version__ = "0.6.8",
         if ( 0 > route.indexOf(_delims[ 0 ]) )
         {
             // literal route
-            return new Route( route, route, {}, method, true );
+            return [ route, route, {}, method, true ];
         }
         parts = split( route, _delims[ 0 ], _delims[ 1 ] );
         l = parts.length;
@@ -496,7 +496,7 @@ var __version__ = "0.6.8",
                 isPattern = true;
             }
         }
-        return new Route( route, new RegExp('^' + pattern + '$'), captures, method, false );
+        return [ route, new RegExp('^' + pattern + '$'), captures, method, false ];
     },
     
     clearRoute = function( handlers, routes, route, method ) {
@@ -533,7 +533,7 @@ var __version__ = "0.6.8",
             }
             else
             {
-                h[ route ] = makeRoute( delims, patterns, route, method );
+                h[ route ] = new Route( delims, patterns, route, method );
                 h[ route ].handlers.push( [handler, defaults, types, oneOff, 0] );
                 routes.push( h[ route ] );
             }
@@ -551,18 +551,33 @@ var __version__ = "0.6.8",
     }
 ;
 
-function Route( route, pattern, captures, method, literal, namespace ) 
+function Route( delims, patterns, route, method/*route, pattern, captures, method, literal, namespace*/ ) 
 {
     var self = this;
+    self.__args__ = [ delims, patterns ];
+    self.isParsed = false; // lazy init
     self.handlers = [ ];
     self.route = route;
-    self.pattern = pattern;
-    self.captures = captures;
     self.method = method ? method.toLowerCase( ) : '*';
-    self.literal = true === literal;
-    self.namespace = namespace || null;
+    self.pattern = null;
+    self.captures = null;
+    self.literal = false;
+    self.namespace = null;
+    
+    self.parse = function( ) {
+        if ( self.isParsed ) return self;
+        var r = makeRoute( self.__args__[0], self.__args__[1], self.route, self.method );
+        self.pattern = r[ 1 ];
+        self.captures = r[ 2 ];
+        self.literal = true === r[ 4 ];
+        self.__args__ = null;
+        self.isParsed = true;
+        return self;
+    };
     
     self.dispose = function( ) {
+        self.__args__ = null;
+        self.isParsed = null;
         self.handlers = null;
         self.route = null;
         self.pattern = null;
@@ -952,6 +967,7 @@ Dromeo[PROTO] = {
             {
                 route = routes[ i ];
                 if ( (method !== route.method) && ('*' !== route.method) ) continue;
+                if ( !route.isParsed ) route.parse( ); // lazy init
                 m = route.literal ? (route.pattern === r ? [] : null) : r.match(route.pattern);
                 if ( null == m ) continue;
                 

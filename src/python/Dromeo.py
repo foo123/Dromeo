@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6.8
+#   @version: 0.6.9
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -170,19 +170,34 @@ class _G:
 
 class Route:
     
-    def __init__( self, route, pattern, captures, method="*", literal=False, namespace=None ):
+    #def __init__( self, route, pattern, captures, method="*", literal=False, namespace=None ):
+    def __init__( self, delims, patterns, route, method="*" ):
+        self.__args__ = [ delims, patterns ]
+        self.isParsed = False # lazy init
         self.handlers = [ ]
         self.route = route
-        self.pattern = pattern
-        self.captures = captures
         self.method = str(method).lower() if method else "*"
-        self.literal = literal is True
-        self.namespace = namespace
+        self.pattern = None
+        self.captures = None
+        self.literal = False
+        self.namespace = None
+    
+    def parse( self ):
+        if self.isParsed: return self
+        r = makeRoute( self.__args__[0], self.__args__[1], self.route, self.method )
+        self.pattern = r[ 1 ]
+        self.captures = r[ 2 ]
+        self.literal = r[ 4 ] is True
+        self.__args__ = None
+        self.isParsed = True
+        return self
     
     def __del__(self):
         self.dispose()
         
     def dispose( self ):
+        self.__args__ = None
+        self.isParsed = None
         self.handlers = None
         self.route = None
         self.pattern = None
@@ -366,7 +381,7 @@ def makeRoute( delims, patterns, route, method=None ):
     
     if delims[ 0 ] not in route:
         # literal route
-        return Route( route, route, {}, method, True )
+        return [ route, route, {}, method, True ]
         
     parts = split( route, delims[ 0 ], delims[ 1 ] )
     isPattern = False
@@ -414,7 +429,7 @@ def makeRoute( delims, patterns, route, method=None ):
             pattern += re.escape( part )
             isPattern = True
     
-    return Route( route, re.compile('^' + pattern + '$'), captures, method, False )
+    return [ route, re.compile('^' + pattern + '$'), captures, method, False ]
 
 
 def addRoute( handlers, routes, delims, patterns, prefix, route, oneOff=False ):
@@ -432,7 +447,7 @@ def addRoute( handlers, routes, delims, patterns, prefix, route, oneOff=False ):
         if route in h:
             h[ route ].handlers.append( [handler, defaults, types, oneOff, 0] )
         else:
-            h[ route ] = makeRoute( delims, patterns, route, method )
+            h[ route ] = Route( delims, patterns, route, method )
             h[ route ].handlers.append( [handler, defaults, types, oneOff, 0] )
             routes.append( h[ route ] )
 
@@ -477,7 +492,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6.8"
+    VERSION = "0.6.9"
     
     Route = Route
     
@@ -745,6 +760,7 @@ class Dromeo:
             found = False
             for route in routes:
                 if method != route.method and '*' != route.method: continue
+                if not route.isParsed: route.parse() # lazy init
                 m = (True if route.pattern == r else False) if route.literal else route.pattern.match( r )
                 if not m: continue
                 
