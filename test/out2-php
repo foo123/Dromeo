@@ -1,0 +1,38 @@
+Dromeo.VERSION = 0.6.9
+
+string(41) "(.*?(\?|&)moo[^=&#]*((=[^&#]*)|&|#|$).*?)"
+Route Handler Called
+Route: http://abc.org/
+Params: Array
+(
+    [foo] => moo
+    [extra] => extra
+)
+
+Fallback Handler Called
+Route: http://abc.org/?foo=1
+Params: 
+Route Handler Called
+Route: http://abc.org/?foo=1&moo=2
+Params: Array
+(
+    [foo] => ?foo=1&moo=2
+    [extra] => extra
+)
+
+Route Handler Called
+Route: http://abc.org/?moo[foo][]
+Params: Array
+(
+    [foo] => ?moo[foo][]
+    [extra] => extra
+)
+
+Route Handler Called
+Route: http://abc.org/?moo
+Params: Array
+(
+    [foo] => ?moo
+    [extra] => extra
+)
+
