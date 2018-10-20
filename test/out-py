@@ -1,19 +1,11 @@
 Dromeo Module loaded succesfully
-Dromeo.VERSION =  0.6.9
+Dromeo.VERSION =  1.0.0
 
 
 Route Handler Called
 Route:  http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar
-Params:  {   'extra': 'extra',
+Params:  {   'default_part': '1',
     'foo': 'soo',
-    'group': 'users',
-    'id': 23,
-    'preview': 'prev iew',
-    'rest': '&foo=bar',
-    'user': 'abcd12'}
-Route Handler Called
-Route:  http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar
-Params:  {   'foo': 'soo',
     'group': 'users',
     'id': 23,
     'once': 'once',
@@ -33,6 +25,7 @@ Params:  {   'extra': 'extra',
     'foo': 'moo',
     'group': 'users',
     'id': 23,
+    'multiple_methods': '1',
     'preview': None,
     'rest': '/?preview=preview&foo=bar',
     'user': 'abcd12'}
@@ -46,15 +39,6 @@ Params:  {   'const_pattern': 'const_pattern',
     'user': 'abcd12'}
 Route Handler Called
 Route:  http://abc.org/users/abcd12/23
-Params:  {   'extra': 'extra',
-    'foo': 'moo',
-    'group': 'users',
-    'id': 23,
-    'preview': None,
-    'rest': None,
-    'user': 'abcd12'}
-Route Handler Called
-Route:  http://abc.org/users/abcd12/23
 Params:  {   'const_pattern': 'const_pattern',
     'foo': 'moo',
     'group': 'users',
@@ -63,7 +47,7 @@ Params:  {   'const_pattern': 'const_pattern',
     'user': 'abcd12'}
 Literal Route Handler Called
 Route:  http://literal.abc.org/
-Params:  {'extra': 'extra', 'foo': 'moo'}
+Params:  {'extra': 'extra', 'foo': 'moo', 'literal_route': '1'}
 
 
 Parse URI:  http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1#foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2
@@ -78,4 +62,4 @@ Parse URI:  http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20str
 
 
 Build URI
-http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1#foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2
+http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1

@@ -52,7 +52,7 @@ dromeo
       // same as using
       //method: '*',
       handler: literalRouteHandler, 
-      defaults: {'foo':'moo','extra':'extra'}
+      defaults: {'foo':'moo','extra':'extra','literal_route':1}
       //types: {'id': 'INTEGER'}
       }
     )
@@ -60,19 +60,19 @@ dromeo
       {
       route:'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%INT%:id}{/%moo|soo|too%:?foo(1)}{%?|&%preview=%VAR%:?preview(2)}{%ALL%:?rest}',
       // same as using
-      //method: '*',
+      method: ['get','post'],
       handler: routeHandler, 
-      defaults: {'foo':'moo','extra':'extra'}
+      defaults: {'foo':'moo','extra':'extra','multiple_methods':1}
       //types: {'id': 'INTEGER'}
       }
     )
     .one(
       {
-      route:'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}',
+      route:'http://abc.org/{:group}/{:user}/{:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}',
       // same as using
       //method: '*',
       handler: routeHandler, 
-      defaults: {'foo':'moo','once':'once'},
+      defaults: {'foo':'moo','once':'once','default_part':1},
       types: {'id': 'INTEGER'}
       }
     )
@@ -89,9 +89,9 @@ dromeo
 ;
 
 dromeo.route( 'http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar', '*', false );
-dromeo.route( 'http://abc.org/users/abcd12/23/?preview=preview&foo=bar', '*', false );
+dromeo.route( 'http://abc.org/users/abcd12/23/?preview=preview&foo=bar', 'get', false );
 dromeo.route( 'http://abc.org/users/abcd12/23', '*', false );
-dromeo.route( 'http://literal.abc.org/', '*', false );
+dromeo.route( 'http://literal.abc.org/', 'get', false );
 
 var uri = 'http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1'
 echo( );

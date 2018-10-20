@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 0.6.9
+#   @version: 1.0.0
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -170,13 +170,12 @@ class _G:
 
 class Route:
     
-    #def __init__( self, route, pattern, captures, method="*", literal=False, namespace=None ):
-    def __init__( self, delims, patterns, route, method="*" ):
+    def __init__( self, delims, patterns, route, method ):
         self.__args__ = [ delims, patterns ]
         self.isParsed = False # lazy init
         self.handlers = [ ]
         self.route = route
-        self.method = str(method).lower() if method else "*"
+        self.method = method
         self.pattern = None
         self.captures = None
         self.literal = False
@@ -398,6 +397,10 @@ def makeRoute( delims, patterns, route, method=None ):
             
             # http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
             p = part.split( delims[ 4 ] )
+            if not len(p[ 0 ]):
+                # http://abc.org/{:user}/{:?id}
+                # assume pattern is %PART%
+                p[ 0 ] = '%PART%'
             capturePattern = makePattern( delims, patterns, p[ 0 ] )
             
             if len(p) > 1:
@@ -432,39 +435,39 @@ def makeRoute( delims, patterns, route, method=None ):
     return [ route, re.compile('^' + pattern + '$'), captures, method, False ]
 
 
-def addRoute( handlers, routes, delims, patterns, prefix, route, oneOff=False ):
+def addRoute( routes, delims, patterns, prefix, route, oneOff=False ):
     if route and isinstance(route, dict) and 'route' in route and len(route['route'])>0 and 'handler' in route and callable(route['handler']):
         oneOff = (True == oneOff)
         handler = route['handler']
         defaults = dict(route['defaults']) if 'defaults' in route else {}
         types = dict(route['types']) if ('types' in route) and route['types'] else None
-        method = str(route['method']).lower() if 'method' in route else '*'
+        method = (list(map(lambda x: str(x).lower(),route['method'])) if isinstance(route['method'],list) else [str(route['method']).lower()]) if 'method' in route else ['*']
+        if '*' in method: method = ['*']
         route = prefix + route['route']
-        
-        if method not in handlers: handlers[method] = {}
-        h = handlers[method]
-        
-        if route in h:
-            h[ route ].handlers.append( [handler, defaults, types, oneOff, 0] )
-        else:
-            h[ route ] = Route( delims, patterns, route, method )
-            h[ route ].handlers.append( [handler, defaults, types, oneOff, 0] )
-            routes.append( h[ route ] )
+        r = None
+        for rt in routes:
+            if r == rt:
+                r = rt
+                break
+                
+        if not r:
+            r = Route( delims, patterns, route, method )
+            routes.append(r)
+        r.handlers.append( [handler, defaults, types, oneOff, 0] )
 
 
-def addRoutes( handlers, routes, delims, patterns, prefix, args, oneOff=False ):
+def addRoutes( routes, delims, patterns, prefix, args, oneOff=False ):
     for route in args:
-        addRoute(handlers, routes, delims, patterns, prefix, route, oneOff)
+        addRoute(routes, delims, patterns, prefix, route, oneOff)
 
 
-def clearRoute( handlers, routes, route, method ):
+def clearRoute( routes, route ):
     l = len(routes)-1
     while l >= 0:
-        if route == routes[ l ].route and method == routes[ l ].method:
+        if route == routes[ l ].route:
+            routes[ l ].dispose( )
             del routes[l : l+1]
         l -= 1
-    handlers[ route ].dispose( )
-    del handlers[ route ]
 
 def type_to_int( v ):
     try:
@@ -492,7 +495,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "0.6.9"
+    VERSION = "1.0.0"
     
     Route = Route
     
@@ -573,7 +576,6 @@ class Dromeo:
         self.definePattern( 'FRAGMENT',   '#[^?#]+' )
         self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' )
         self.definePattern( 'ALL',     '.+' )
-        self._handlers = { '*':{} }
         self._routes = [ ]
         self._fallback = False
         self._prefix = str(prefix) if prefix else ''
@@ -585,19 +587,13 @@ class Dromeo:
     def dispose( self ):
         self._delims = None
         self._patterns = None
-        self._routes = None
         self._fallback = None
         self._prefix = None
-        for m in self._handlers: 
-            h = self._handlers[m]
-            for r in h: 
-                h[r].dispose( )
-                h[r] = None
-        self._handlers = None
+        for r in self._routes: r.dispose( )
+        self._routes = None
         return self
         
     def reset( self ):
-        self._handlers = { '*':{} }
         self._routes = [ ]
         self._fallback = False
         return self
@@ -680,7 +676,7 @@ class Dromeo:
         else:
             routes = args
         
-        addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, routes)
+        addRoutes(self._routes, self._delims, self._patterns, self._prefix, routes)
         return self
     
     
@@ -694,54 +690,63 @@ class Dromeo:
         else:
             routes = args
         
-        addRoutes(self._handlers, self._routes, self._delims, self._patterns, self._prefix, routes, True)
+        addRoutes(self._routes, self._delims, self._patterns, self._prefix, routes, True)
         return self
     
     
     def off( self, route, handler=None ):
+        if not route: return self
+        
         routes = self._routes 
-        handlers = self._handlers
         prefix = self._prefix
         
-        if route:
-            if isinstance(route, dict):
-                m = str(route['method']).lower() if 'method' in route else '*'
-                handler = route['handler'] if 'handler' in route else handler
-                route = route['route'] if 'route' in route else None
-                if route and (m in handlers):
-                    route = prefix + route
-                    h = handlers[m]
-                    if route in h:
-                        if handler and callable(handler):
-                            r = h[ route ]
-                            l = len(r.handlers)-1
-                            while l>=0:
-                                if handler == r.handlers[ l ][0]:
-                                    # http://www.php2python.com/wiki/function.array-splice/
-                                    del r.handlers[l : l+1]
-                                l -= 1
-                            if not len(r.handlers):
-                                clearRoute( h, routes, route, m )
-                        else:
-                            clearRoute( h, routes, route, m )
+        if isinstance(route, dict):
+            handler = route['handler'] if 'handler' in route else handler
+            route = route['route'] if 'route' in route else None
+            if not route: return self
             
-            elif isinstance(route, str) and len(route):
-                route = prefix + route
-                for m in handlers:
-                    h = handlers[m]
-                    if route in h:
-                        if handler and callable(handler):
-                            r = handlers[ route ]
-                            l = len(r.handlers)-1
-                            while l>=0:
-                                if handler == r.handlers[ l ][0]:
-                                    # http://www.php2python.com/wiki/function.array-splice/
-                                    del r.handlers[l : l+1]
-                                l -= 1
-                            if not len(r.handlers):
-                                clearRoute( h, routes, route, m )
-                        else:
-                            clearRoute( h, routes, route, m )
+            route = prefix + route
+            r = None
+            for rt in routes:
+                if route == rt.route:
+                    r = rt
+                    break
+            
+            if not r: return self
+            
+            if handler and callable(handler):
+                l = len(r.handlers)-1
+                while l>=0:
+                    if handler == r.handlers[ l ][0]:
+                        # http://www.php2python.com/wiki/function.array-splice/
+                        del r.handlers[l : l+1]
+                    l -= 1
+                if not len(r.handlers):
+                    clearRoute( routes, route )
+            else:
+                clearRoute( routes, route, m )
+        
+        elif isinstance(route, str) and len(route):
+            route = prefix + route
+            r = None
+            for rt in routes:
+                if route == rt.route:
+                    r = rt
+                    break
+            
+            if not r: return self
+            
+            if handler and callable(handler):
+                l = len(r.handlers)-1
+                while l>=0:
+                    if handler == r.handlers[ l ][0]:
+                        # http://www.php2python.com/wiki/function.array-splice/
+                        del r.handlers[l : l+1]
+                    l -= 1
+                if not len(r.handlers):
+                    clearRoute( routes, route )
+            else:
+                clearRoute( routes, route )
         
         return self
         
@@ -759,7 +764,7 @@ class Dromeo:
             routes = self._routes[:] # copy, avoid mutation
             found = False
             for route in routes:
-                if method != route.method and '*' != route.method: continue
+                if method not in route.method and '*' != route.method[0]: continue
                 if not route.isParsed: route.parse() # lazy init
                 m = (True if route.pattern == r else False) if route.literal else route.pattern.match( r )
                 if not m: continue
@@ -780,6 +785,7 @@ class Dromeo:
                     type = handler[2]
                     params = {
                         'route': r,
+                        'method': method,
                         'pattern': route.route,
                         'fallback': False,
                         'data': copy.deepcopy(defaults)
@@ -806,14 +812,14 @@ class Dromeo:
                     handler[0]( params )
                 
                 # remove called oneOffs
-                lh = len(route.handlers)-1
-                while lh >= 0: 
-                    # handler is oneOff and called once
-                    handler = route.handlers[lh]
-                    if handler[3] and handler[4]: del route.handlers[lh : lh+1]
-                    lh -= 1
-                if 0 == len(route.handlers):
-                    clearRoute( self._handlers[route.method], self._routes, route.route, route.method )
+                #lh = len(route.handlers)-1
+                #while lh >= 0: 
+                #    # handler is oneOff and called once
+                #    handler = route.handlers[lh]
+                #    if handler[3] and handler[4]: del route.handlers[lh : lh+1]
+                #    lh -= 1
+                #if 0 == len(route.handlers):
+                #    clearRoute( self._routes, route.route )
                 
                 if breakOnFirstMatch: return True
             

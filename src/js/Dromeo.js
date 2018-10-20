@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
-*   @version: 0.6.9
+*   @version: 1.0.0
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -20,10 +20,10 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
     (root[ name ] = (m=factory.call( root )))&&('function'===typeof(define))&&define.amd&&define(function( ){return m;} );
 }(  /* current root */          this, 
     /* module name */           "Dromeo",
-    /* module factory */        function( undef ) {
+    /* module factory */        function ModuleFactory__Dromeo( undef ) {
 "use strict";
 
-var __version__ = "0.6.9", 
+var __version__ = "1.0.0", 
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -120,11 +120,11 @@ var __version__ = "0.6.9",
     _patternOr = /^([^|]+\|.+)$/,
     _nested = /\[([^\]]*?)\]$/,
     _group = /\((\d+)\)$/,
-    trim_re = /^\s+|\s+$/g, re_escape = /([*+\[\]\(\)?^$\/\\:])/g,
+    trim_re = /^\s+|\s+$/g, re_escape = /([*+\[\]\(\)?^$\/\\:.])/g,
     
     // auxilliaries
     PROTO = 'prototype', OP = Object[PROTO], AP = Array[PROTO], FP = Function[PROTO],
-    toString = OP.toString, HAS = 'hasOwnProperty',
+    toString = OP.toString, HAS = OP.hasOwnProperty,
     isNode = "undefined" !== typeof(global) && '[object global]' == toString.call(global),
     is_array = function( o ) { return (o instanceof Array) || ('[object Array]' === toString.call(o)); },
     is_obj = function( o ) { return (o instanceof Object) || ('[object Object]' === toString.call(o)); },
@@ -144,7 +144,7 @@ var __version__ = "0.6.9",
         {
             for ( k in o2 )
             {
-                if ( !o2[HAS](k) ) continue;
+                if ( !HAS.call(o2,k) ) continue;
                 v = o2[k];
                 if ( is_number(v) ) o1[k] = 0+v;
                 else if ( is_string(v) ) o1[k] = v.slice();
@@ -172,7 +172,7 @@ var __version__ = "0.6.9",
         {
             if ( m[ i ] )  uri[ uriComponent[ i ] ] = m[ i ]
         }
-        if ( uri[HAS]('port') ) uri['port'] = parseInt(uri['port'], 10);
+        if ( HAS.call(uri,'port') ) uri['port'] = parseInt(uri['port'], 10);
         
         if ( component ) 
         {
@@ -282,7 +282,7 @@ var __version__ = "0.6.9",
                         ct = -1;
                         for ( p in obj ) 
                         {
-                            if ( obj[HAS](p) ) 
+                            if ( HAS.call(obj,p) ) 
                             {
                                 if ( +p > ct && p.match(/^\d+$/g) ) 
                                 {
@@ -298,7 +298,22 @@ var __version__ = "0.6.9",
         }
         return array;
     },
-    
+    in_array = function( v, a, strict ) {
+        var i, l = a.length;
+        if ( true === strict )
+        {
+            for(i=0; i<l; i++)
+                if ( v===a[i] )
+                    return true;
+        }
+        else
+        {
+            for(i=0; i<l; i++)
+                if ( v==a[i] )
+                    return true;
+        }
+        return false;
+    },
     // adapted from https://github.com/kvz/phpjs
     http_build_query_helper = function( key, val, arg_separator, PHP_QUERY_RFC3986 ) {
         var k, tmp, encode = PHP_QUERY_RFC3986 ? rawurlencode : urlencode;
@@ -313,7 +328,7 @@ var __version__ = "0.6.9",
                 tmp = [ ];
                 for ( k in val ) 
                 {
-                    if ( val[HAS](k) && null != val[k] ) 
+                    if ( HAS.call(val,k) && null != val[k] ) 
                     {
                         tmp.push( http_build_query_helper(key + "[" + k + "]", val[k], arg_separator, PHP_QUERY_RFC3986) );
                     }
@@ -338,7 +353,7 @@ var __version__ = "0.6.9",
         
         for ( key in data ) 
         {
-            if ( !data[HAS](key) ) continue;
+            if ( !HAS.call(data,key) ) continue;
             value = data[ key ];
             query = http_build_query_helper(key, value, arg_separator, PHP_QUERY_RFC3986);
             if ( '' != query ) tmp.push( query );
@@ -380,7 +395,7 @@ var __version__ = "0.6.9",
             {
                 if ( pattern[ i ].length )
                 {
-                    if ( _patterns[HAS]( pattern[ i ] ) )
+                    if ( HAS.call(_patterns, pattern[ i ] ) )
                     {
                         p.push( '(' + _patterns[ pattern[ i ] ][ 0 ] + ')' );
                         numGroups++;
@@ -449,6 +464,12 @@ var __version__ = "0.6.9",
                 
                 // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
                 p = part.split( _delims[ 4 ] );
+                if ( !p[ 0 ].length )
+                {
+                    // http://abc.org/{:user}/{:?id}
+                    // assume pattern is %PART%
+                    p[ 0 ] = '%PART%';
+                }
                 capturePattern = makePattern( _delims, _patterns, p[ 0 ] );
                 
                 if ( p.length > 1 )
@@ -461,7 +482,7 @@ var __version__ = "0.6.9",
                     {
                         captureName = captureName.slice(0, -m[0].length);
                         captureIndex = parseInt(m[1], 10);
-                        patternTypecaster = capturePattern[2][HAS](captureIndex) 
+                        patternTypecaster = HAS.call(capturePattern[2],captureIndex) 
                                 ? capturePattern[2][captureIndex] 
                                 : null;
                         if ( captureIndex >= 0 && captureIndex < capturePattern[1] )
@@ -499,20 +520,19 @@ var __version__ = "0.6.9",
         return [ route, new RegExp('^' + pattern + '$'), captures, method, false ];
     },
     
-    clearRoute = function( handlers, routes, route, method ) {
-        var i, l = routes.length;
+    clearRoute = function( routes, route ) {
+        var i, l = routes.length, r;
         for (i=l-1; i>=0; i--)
         {
-            if ( route === routes[ i ].route && method === routes[ i ].method )
+            if ( route === routes[ i ].route )
             {
+                routes[ i ].dispose( );
                 routes.splice( i, 1 );
             }
         }
-        handlers[ route ].dispose( );
-        delete handlers[ route ];
     },
 
-    addRoute = function( handlers, routes, delims, patterns, prefix, route, oneOff ) {
+    addRoute = function( routes, delims, patterns, prefix, route, oneOff ) {
         if ( route && is_string(route.route) && route.route.length && 
             route.handler && is_callable(route.handler) )
         {
@@ -520,45 +540,48 @@ var __version__ = "0.6.9",
             var handler = route.handler,
                 defaults = route.defaults || {},
                 types = route.types || null,
-                method = route.method ? route.method.toLowerCase() : '*',
-                h;
+                method = route.method ? (route.method.map ? route.method.map(function(x){return x.toLowerCase()}) : [route.method.toLowerCase()]) : ['*'],
+                h, r, i, l;
             route = prefix + route.route;
+            if ( in_array('*', method) ) method = ['*'];
             
-            if ( !handlers[HAS]( method ) ) handlers[method] = {};
-            h = handlers[method];
-            
-            if ( h[HAS]( route ) )
+            r = null;
+            for(i=0,l=routes.length; i<l; i++)
             {
-                h[ route ].handlers.push( [handler, defaults, types, oneOff, 0] );
+                if ( route === routes[i].route )
+                {
+                    r = routes[i];
+                    break;
+                }
             }
-            else
+            if ( !r )
             {
-                h[ route ] = new Route( delims, patterns, route, method );
-                h[ route ].handlers.push( [handler, defaults, types, oneOff, 0] );
-                routes.push( h[ route ] );
+                r = new Route( delims, patterns, route, method );
+                routes.push( r );
             }
+            r.handlers.push( [handler, defaults, types, oneOff, 0] );
         }
     },
 
-    addRoutes = function( handlers, routes, delims, patterns, prefix, args, oneOff ) {
+    addRoutes = function( routes, delims, patterns, prefix, args, oneOff ) {
         var route, i;
         oneOff = !!oneOff;
         for (i=0; i<args.length; i++)
         {
             route = args[i];
-            addRoute(handlers, routes, delims, patterns, prefix, route, oneOff);
+            addRoute(routes, delims, patterns, prefix, route, oneOff);
         }
     }
 ;
 
-function Route( delims, patterns, route, method/*route, pattern, captures, method, literal, namespace*/ ) 
+function Route( delims, patterns, route, method ) 
 {
     var self = this;
     self.__args__ = [ delims, patterns ];
     self.isParsed = false; // lazy init
     self.handlers = [ ];
     self.route = route;
-    self.method = method ? method.toLowerCase( ) : '*';
+    self.method = method;
     self.pattern = null;
     self.captures = null;
     self.literal = false;
@@ -605,10 +628,9 @@ var Dromeo = function Dromeo( route_prefix ) {
     self.definePattern( 'FRAGMENT',   '#[^?#]+' );
     self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' );
     self.definePattern( 'ALL',     '.+' );
-    self._handlers = { '*':{} };
     self._routes = [ ];
     self._fallback = false;
-    self._prefix = route_prefix ? route_prefix : '';
+    self._prefix = null!=route_prefix ? String(route_prefix) : '';
 };
 
 
@@ -687,7 +709,7 @@ Dromeo.defType = function( type, caster ) {
     if ( type && is_callable(caster) ) Dromeo.TYPES[ type ] = caster;
 };
 Dromeo.TYPE = function( type ) {
-    if ( type && Dromeo.TYPES[HAS](type) ) return Dromeo.TYPES[ type ];
+    if ( type && HAS.call(Dromeo.TYPES,type) ) return Dromeo.TYPES[ type ];
     return null;
 };
 Dromeo[PROTO] = {
@@ -695,40 +717,26 @@ Dromeo[PROTO] = {
     
     _delims: null,
     _patterns: null,
-    _handlers: null,
     _routes: null,
     _fallback: false,
     _prefix: '',
     
     dispose: function( ) {
-        var self = this, r, m, h;
+        var self = this, i, l;
         self._delims = null;
         self._patterns = null;
-        self._routes = null;
         self._fallback = null;
         self._prefix = null;
-        for ( m in self._handlers ) 
+        for ( i=0,l=self._routes.length; i<l; i++ ) 
         {
-            if ( self._handlers[HAS](m) )
-            {
-                h = self._handlers[m];
-                for ( r in h ) 
-                {
-                    if ( h[HAS](r) ) 
-                    {
-                        h[ r ].dispose( );
-                        h[ r ] = null;
-                    }
-                }
-            }
+            self._routes[i].dispose( );
         }
-        self._handlers = null;
+        self._routes = null;
         return self;
     },
     
     reset: function( ) {
         var self = this;
-        self._handlers = { '*':{} };
         self._routes = [ ];
         self._fallback = false;
         return self;
@@ -759,7 +767,7 @@ Dromeo[PROTO] = {
         var self = this;
         if ( typecaster && 
             is_string(typecaster) && typecaster.length &&
-            Dromeo.TYPES[HAS](typecaster) 
+            HAS.call(Dromeo.TYPES,typecaster) 
         ) typecaster = Dromeo.TYPES[ typecaster ];
         
         if ( !typecaster || !is_callable(typecaster) ) typecaster = null;
@@ -769,7 +777,7 @@ Dromeo[PROTO] = {
     
     dropPattern: function( className ) {
         var self = this, patterns = self._patterns;
-        if ( patterns[HAS]( className ) ) 
+        if ( HAS.call(patterns, className ) ) 
             delete patterns[ className ];
         return self;
     },
@@ -847,7 +855,7 @@ Dromeo[PROTO] = {
         {
             routes = args;
         }
-        addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, routes );
+        addRoutes( self._routes, self._delims, self._patterns, self._prefix, routes );
         return self;
     },
     
@@ -868,74 +876,81 @@ Dromeo[PROTO] = {
         {
             routes = args;
         }
-        addRoutes( self._handlers, self._routes, self._delims, self._patterns, self._prefix, routes, true );
+        addRoutes( self._routes, self._delims, self._patterns, self._prefix, routes, true );
         return self;
     },
     
     off: function( route, handler ) {
         var self = this, 
             routes = self._routes, 
-            handlers = self._handlers,
             prefix = self._prefix, 
-            i, r, m, h, l;
+            i, r, l;
         
-        if ( route )
+        if ( !route ) return self;
+        
+        if ( is_obj(route) )
         {
-            if ( is_obj(route) )
+            handler = route.handler || handler;
+            route = route.route;
+            if ( !route ) return self;
+            route = prefix + route;
+            r = null;
+            for(i=0,l=routes.length; i<l; i++)
             {
-                m = route.method ? route.method.toLowerCase() : '*';
-                handler = route.handler || handler;
-                route = route.route;
-                if ( route && handlers[HAS](m) )
+                if ( route === routes[i].route )
                 {
-                    route = prefix + route;
-                    h = handlers[m];
-                    if ( h[HAS](route) )
-                    {
-                        if ( handler && is_callable(handler) )
-                        {
-                            r = h[ route ]; l = r.handlers.length;
-                            for (i=l-1; i>=0; i--)
-                            {
-                                if ( handler === r.handlers[ i ][0] )
-                                    r.handlers.splice( i, 1 );
-                            }
-                            if ( !r.handlers.length )
-                                clearRoute( h, routes, route, m );
-                        }
-                        else
-                        {
-                            clearRoute( h, routes, route, m );
-                        }
-                    }
+                    r = routes[i];
+                    break;
                 }
             }
-            else if ( is_string(route) && route.length )
+            
+            if ( !r ) return self;
+            
+            if ( handler && is_callable(handler) )
             {
-                route = prefix + route;
-                for (m in handlers)
+                l = r.handlers.length;
+                for (i=l-1; i>=0; i--)
                 {
-                    if ( !handlers[HAS](m) ) continue;
-                    h = handlers[m];
-                    if ( h[HAS](route) )
-                    {
-                        if ( handler && is_callable(handler) )
-                        {
-                            r = h[ route ]; l = r.handlers.length;
-                            for (i=l-1; i>=0; i--)
-                            {
-                                if ( handler === r.handlers[ i ][0] )
-                                    r.handlers.splice( i, 1 );
-                            }
-                            if ( !r.handlers.length )
-                                clearRoute( h, routes, route, m );
-                        }
-                        else
-                        {
-                            clearRoute( h, routes, route, m );
-                        }
-                    }
+                    if ( handler === r.handlers[ i ][0] )
+                        r.handlers.splice( i, 1 );
                 }
+                if ( !r.handlers.length )
+                    clearRoute( routes, route );
+            }
+            else
+            {
+                clearRoute( routes, route );
+            }
+        }
+        else if ( is_string(route) && route.length )
+        {
+            route = prefix + route;
+            r = null;
+            for(i=0,l=routes.length; i<l; i++)
+            {
+                if ( route === routes[i].route )
+                {
+                    r = routes[i];
+                    break;
+                }
+            }
+            
+            if ( !r ) return self;
+
+            if ( handler && is_callable(handler) )
+            {
+                l = r.handlers.length;
+                for (i=l-1; i>=0; i--)
+                {
+                    if ( handler === r.handlers[ i ][0] )
+                        r.handlers.splice( i, 1 );
+                }
+                if ( !r.handlers.length )
+                    clearRoute( routes, route );
+            }
+            else
+            {
+                clearRoute( routes, route );
             }
         }
         return self;
@@ -959,14 +974,14 @@ Dromeo[PROTO] = {
         if ( r )
         {
             breakOnFirstMatch = false !== breakOnFirstMatch;
-            method = method ? method.toLowerCase( ) : '*';
+            method = method ? String(method).toLowerCase( ) : '*';
             routes = self._routes.slice( ); // copy, avoid mutation
             found = false;
             l = routes.length;
             for (i=0; i<l; i++) 
             {
                 route = routes[ i ];
-                if ( (method !== route.method) && ('*' !== route.method) ) continue;
+                if ( !in_array(method, route.method) && ('*' !== route.method[0]) ) continue;
                 if ( !route.isParsed ) route.parse( ); // lazy init
                 m = route.literal ? (route.pattern === r ? [] : null) : r.match(route.pattern);
                 if ( null == m ) continue;
@@ -988,6 +1003,7 @@ Dromeo[PROTO] = {
                     type = handler[2];
                     params = {
                         route: r,
+                        method: method,
                         pattern: route.route,
                         fallback: false,
                         data: extend({}, defaults, true)
@@ -996,16 +1012,16 @@ Dromeo[PROTO] = {
                     {
                         for (v in route.captures) 
                         {
-                            if ( !route.captures[HAS](v) ) continue;
+                            if ( !HAS.call(route.captures,v) ) continue;
                             g = route.captures[ v ];
                             groupIndex = g[0];
                             groupTypecaster = g[1];
                             if ( m[ groupIndex ] ) 
                             {
-                                if ( type && type[HAS]( v ) && type[ v ] )
+                                if ( type && HAS.call(type, v ) && type[ v ] )
                                 {
                                     typecaster = type[ v ];
-                                    if ( is_string(typecaster) && Dromeo.TYPES[HAS](typecaster) )
+                                    if ( is_string(typecaster) && HAS.call(Dromeo.TYPES,typecaster) )
                                         typecaster = Dromeo.TYPES[typecaster];
                                     params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
                                 }
@@ -1019,7 +1035,7 @@ Dromeo[PROTO] = {
                                     params.data[ v ] = m[ groupIndex ];
                                 }
                             }
-                            else if ( !params.data[HAS]( v ) ) 
+                            else if ( !HAS.call(params.data, v ) ) 
                             {
                                 params.data[ v ] = null;
                             }
@@ -1031,14 +1047,14 @@ Dromeo[PROTO] = {
                 }
                 
                 // remove called oneOffs
-                for (h=route.handlers.length-1; h>=0; h--)
+                /*for (h=route.handlers.length-1; h>=0; h--)
                 {
                     // handler is oneOff and already called once
                     handler = route.handlers[h];
                     if ( handler[3] && handler[4] ) route.handlers.splice(h, 1);
                 }
                 if ( !route.handlers.length )
-                    clearRoute( self._handlers[route.method], self._routes, route.route, route.method );
+                    clearRoute( self._routes, route.route );*/
                 
                 if ( breakOnFirstMatch ) return true;
             }

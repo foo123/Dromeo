@@ -3,12 +3,12 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
-*   @version: 0.6.9
+*   @version: 1.0.0
 *
 *   https://github.com/foo123/Dromeo
 *
 **/
-if (!class_exists('Dromeo'))
+if (!class_exists('Dromeo', false))
 {
 class DromeoRoute
 {
@@ -22,13 +22,13 @@ class DromeoRoute
     public $literal = null;
     public $namespace = null;
     
-    public function __construct( $delims, $patterns, $route, $method="*"/*$route, $pattern, $captures, $method="*", $literal=false, $namespace=null*/ ) 
+    public function __construct( $delims, $patterns, $route, $method ) 
     {
         $this->__args__ = array( $delims, $patterns );
         $this->isParsed = false; // lazy init
         $this->handlers = array( );
         $this->route = $route;
-        $this->method = $method && strlen($method) ? strtolower($method) : "*";
+        $this->method = $method;
         $this->pattern = null;
         $this->captures = null;
         $this->literal = false;
@@ -69,7 +69,7 @@ class DromeoRoute
 
 class Dromeo 
 {
-    const VERSION = "0.6.9";
+    const VERSION = "1.0.0";
     
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     private static $HTTP_STATUS = array(
@@ -168,7 +168,6 @@ class Dromeo
     
     private $_delims = null;
     private $_patterns = null;
-    private $_handlers = null;
     private $_routes = null;
     private $_fallback = false;
     private $_prefix = '';
@@ -284,10 +283,9 @@ class Dromeo
         $this->definePattern( 'FRAGMENT',   '#[^?#]+' );
         $this->definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' );
         $this->definePattern( 'ALL',     '.+' );
-        $this->_handlers = array( '*'=>array( ) );
         $this->_routes = array( );
         $this->_fallback = false;
-        $this->_prefix = $route_prefix ? $route_prefix : '';
+        $this->_prefix = $route_prefix ? (string)$route_prefix : '';
     }
     
     public function __destruct( )
@@ -299,24 +297,18 @@ class Dromeo
     {
         $this->_delims = null;
         $this->_patterns = null;
-        $this->_routes = null;
         $this->_fallback = null;
         $this->_prefix = null;
-        foreach ( $this->_handlers as $h ) 
+        foreach ( $this->_routes as $r ) 
         {
-            foreach ( $h as $k=>$r ) 
-            {
-                $r->dispose( );
-                $h[$k] = null;
-            }
+            $r->dispose( );
         }
-        $this->_handlers = null;
+        $this->_routes = null;
         return $this;
     }
         
     public function reset( )
     {
-        $this->_handlers = array( '*'=>array() );
         $this->_routes = array( );
         $this->_fallback = false;
         return $this;
@@ -442,7 +434,7 @@ class Dromeo
         {
             $routes = $args;
         }
-        self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $routes);
+        self::addRoutes($this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $routes);
         return $this;
     }
     
@@ -461,7 +453,7 @@ class Dromeo
             $routes = array(array(
                 'route'=> $args[0], 
                 'handler'=> $args[1], 
-                'method'=> '*', 
+                'method'=> '*',
                 'defaults'=> array(),
                 'types'=> null
             ));
@@ -470,69 +462,75 @@ class Dromeo
         {
             $routes = $args;
         }
-        self::addRoutes($this->_handlers, $this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $routes, true);
+        self::addRoutes($this->_routes, $this->_delims, $this->_patterns, $this->_prefix, $routes, true);
         return $this;
     }
     
     public function off( $route, $handler=null )
     {
-        if ( $route )
+        if ( !$route ) return $this;
+        
+        if ( is_array($route) )
         {
-            if ( is_array($route) )
+            $handler = isset($route['handler']) ? $route['handler'] : $handler;
+            $route = $route['route'];
+            if ( !$route ) return $this;
+            $route = $this->_prefix . $route;
+            $r = null;
+            foreach($this->_routes as $rt)
             {
-                $m = isset($route['method']) ? strtolower($route['method']) : '*';
-                $handler = isset($route['handler']) ? $route['handler'] : $handler;
-                $route = $route['route'];
-                if ( $route && isset($this->_handlers[$m]) )
+                if ( $route === $rt->route )
                 {
-                    $route = $this->_prefix . $route; 
-                    $h =& $this->_handlers[$m];
-                    if ( isset($h[$route]) )
-                    {
-                        if ( $handler && is_callable($handler) )
-                        {
-                            $r =& $h[$route];
-                            $l = count($r->handlers);
-                            for ($i=$l-1; $i>=0; $i--)
-                            {
-                                if ( $handler === $r->handlers[ $i ]->handler )
-                                    array_splice($r->handlers, $i, 1);
-                            }
-                            if ( empty($r->handlers) )
-                                self::clearRoute( $h, $this->_routes, $route, $m );
-                        }
-                        else
-                        {
-                            self::clearRoute( $h, $this->_routes, $route, $m );
-                        }
-                    }
+                    $r = $rt;
+                    break;
                 }
             }
-            elseif ( is_string($route) && strlen($route) )
+            if ( !$r ) return $this;
+            
+            if ( $handler && is_callable($handler) )
             {
-                $route = $this->_prefix . $route; 
-                foreach($this->_handlers as $m=>&$h)
+                $l = count($r->handlers);
+                for ($i=$l-1; $i>=0; $i--)
                 {
-                    if ( isset($h[$route]) )
-                    {
-                        if ( $handler && is_callable($handler) )
-                        {
-                            $r =& $h[$route];
-                            $l = count($r->handlers);
-                            for ($i=$l-1; $i>=0; $i--)
-                            {
-                                if ( $handler === $r->handlers[ $i ]->handler )
-                                    array_splice($r->handlers, $i, 1);
-                            }
-                            if ( empty($r->handlers) )
-                                self::clearRoute( $h, $this->_routes, $route, $m );
-                        }
-                        else
-                        {
-                            self::clearRoute( $h, $this->_routes, $route, $m );
-                        }
-                    }
+                    if ( $handler === $r->handlers[ $i ]->handler )
+                        array_splice($r->handlers, $i, 1);
                 }
+                if ( empty($r->handlers) )
+                    self::clearRoute( $this->_routes, $route );
+            }
+            else
+            {
+                self::clearRoute( $this->_routes, $route );
+            }
+        }
+        elseif ( is_string($route) && strlen($route) )
+        {
+            $route = $this->_prefix . $route; 
+            $r = null;
+            foreach($this->_routes as $rt)
+            {
+                if ( $route === $rt->route )
+                {
+                    $r = $rt;
+                    break;
+                }
+            }
+            if ( !$r ) return $this;
+
+            if ( $handler && is_callable($handler) )
+            {
+                $l = count($r->handlers);
+                for ($i=$l-1; $i>=0; $i--)
+                {
+                    if ( $handler === $r->handlers[ $i ]->handler )
+                        array_splice($r->handlers, $i, 1);
+                }
+                if ( empty($r->handlers) )
+                    self::clearRoute( $this->_routes, $route );
+            }
+            else
+            {
+                self::clearRoute( $this->_routes, $route );
             }
         }
         return $this;
@@ -555,7 +553,7 @@ class Dromeo
             $found = false;
             foreach ($routes as $route) 
             {
-                if ( $method !== $route->method && '*' !== $route->method ) continue;
+                if ( !in_array($method, $route->method) && '*' !== $route->method[0] ) continue;
                 if ( !$route->isParsed ) $route->parse( ); // lazy init
                 $matched = $route->literal ? ($route->pattern === $r) : preg_match($route->pattern, $r, $m, 0, 0);
                 if ( !$matched  ) continue;
@@ -576,6 +574,7 @@ class Dromeo
                     // get params
                     $params = array(
                         'route'=> $r,
+                        'method'=> $method,
                         'pattern'=> $route->route,
                         'fallback'=> false,
                         'data'=> array_merge_recursive(array(), $handler->defaults)
@@ -617,14 +616,14 @@ class Dromeo
                 }
                     
                 // remove called oneOffs
-                for ($h=count($route->handlers)-1; $h>=0; $h--)
+                /*for ($h=count($route->handlers)-1; $h>=0; $h--)
                 {
                     // handler is oneOff and called once
                     $handler =& $route->handlers[$h];
                     if ( $handler->oneOff && $handler->called ) array_splice($route->handlers, $h, 1);
                 }
                 if ( empty($route->handlers) )
-                    self::clearRoute( $this->_handlers[$route->method], $this->_routes, $route->route, $route->method );
+                    self::clearRoute( $this->_routes, $route->route );*/
 
                 if ( $breakOnFirstMatch ) return true;
             }
@@ -638,21 +637,19 @@ class Dromeo
         return false;
     }
     
-    private static function clearRoute( &$handlers, &$routes, $route, $method )
+    private static function clearRoute( &$routes, $route )
     {
-        $l = count($routes);
-        for ($i=$l-1; $i>=0; $i--)
+        for ($i=count($routes)-1; $i>=0; $i--)
         {
-            if ( $route === $routes[ $i ]->route && $method === $routes[ $i ]->method )
+            if ( $route === $routes[ $i ]->route )
             {
+                $routes[ $i ]->dispose( );
                 array_splice($routes, $i, 1);
             }
         }
-        $handlers[$route]->dispose( );
-        unset( $handlers[$route] );
     }
 
-    private static function addRoute( &$handlers, &$routes, &$delims, &$patterns, $prefix, $route, $oneOff=false)
+    private static function addRoute( &$routes, &$delims, &$patterns, $prefix, $route, $oneOff=false)
     {
         if ( is_array($route) && isset($route['route']) && is_string($route['route']) && strlen($route['route']) && 
             isset($route['handler']) && is_callable($route['handler']) )
@@ -661,42 +658,40 @@ class Dromeo
             $handler = $route['handler'];
             $defaults = isset($route['defaults']) ? (array)$route['defaults'] : array();
             $types = isset($route['types']) ? (array)$route['types'] : array();
-            $method = isset($route['method']) ? strtolower($route['method']) : '*';
+            $method = isset($route['method']) ? (is_array($route['method']) ? array_map('strtolower',$route['method']) : array(strtolower((string)$route['method']))) : array('*');
+            if ( in_array('*', $method) ) $method = array('*');
+            
             $route = $prefix . $route['route'];
             
-            if ( !isset($handlers[ $method ]) ) $handlers[ $method ] = array( );
-            $h =& $handlers[ $method ];
-            
-            if ( isset($h[ $route ]) )
+            $routeInstance = null;
+            foreach ( $routes  as &$rt )
             {
-                $h[ $route ]->handlers[] = (object)array(
-                    'handler'=>$handler, 
-                    'defaults'=>$defaults, 
-                    'types'=>$types, 
-                    'oneOff'=>$oneOff, 
-                    'called'=>0
-                );
+                if ( $route === $rt->route )
+                {
+                    $routeInstance = $rt;
+                    break;
+                }
             }
-            else
+            if ( null === $routeInstance )
             {
-                $h[ $route ] = new DromeoRoute( $delims, $patterns, $route, $method );
-                $h[ $route ]->handlers[] = (object)array(
-                    'handler'=>$handler, 
-                    'defaults'=>$defaults, 
-                    'types'=>$types, 
-                    'oneOff'=>$oneOff, 
-                    'called'=>0
-                );
-                $routes[] = $h[ $route ];
+                $routeInstance = new DromeoRoute( $delims, $patterns, $route, $method );
+                $routes[] = $routeInstance;
             }
+            $routeInstance->handlers[] = (object)array(
+                'handler'=>$handler, 
+                'defaults'=>$defaults, 
+                'types'=>$types, 
+                'oneOff'=>$oneOff, 
+                'called'=>0
+            );
         }
     }
     
-    private static function addRoutes( &$handlers, &$routes, &$delims, &$patterns, $prefix, $args, $oneOff=false )
+    private static function addRoutes( &$routes, &$delims, &$patterns, $prefix, $args, $oneOff=false )
     {
         foreach ((array)$args as $route)
         {
-            self::addRoute($handlers, $routes, $delims, $patterns, $prefix, $route, $oneOff);
+            self::addRoute($routes, $delims, $patterns, $prefix, $route, $oneOff);
         }
     }
 
@@ -726,6 +721,12 @@ class Dromeo
                 
                 // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
                 $p = explode( $_delims[ 4 ], $part );
+                if ( !strlen($p[ 0 ]) )
+                {
+                    // http://abc.org/{:user}/{:?id}
+                    // assume pattern is %PART%
+                    $p[ 0 ] = '%PART%';
+                }
                 $capturePattern = self::makePattern( $_delims, $_patterns, $p[ 0 ] );
                 
                 if ( count($p) > 1 )

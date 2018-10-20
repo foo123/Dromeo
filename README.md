@@ -158,6 +158,9 @@ http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&mo
 // numeric part is required but not captured (no param name given)
 'http::/abc.org/{%NUMBR%:}'
 
+// part is required and captured as 'name', pattern is assumed %PART%=[^/]+ (capture everything between slashes)
+'http::/abc.org/{:name}'
+
 // optional captured 'id' part is now the numeric pattern plus the leading '/'
 'http::/abc.org{/%NUMBR%:?id}'
 
@@ -217,7 +220,7 @@ router.[on|one]( routeObj | routeObjs | routePattern, handler );
 //
 //{
 //    route: '..', // the route pattern matched, needed
-//    method: 'post', // the method (case-insensitive), default is '*', i.e any
+//    method: 'post', // the method (case-insensitive), default is '*', i.e any, can use array of methods as well, i.e ['get','post']
 //    handler: function(params){/*..*/}, // the route handler to be called, needed
 //    defaults: {/*..*/}, // any default and/or extra parameters to be used, if missing, and passed to handler, default is {}
 //    types: {/*..*/} // optional typecasters for specific matches, i.e INTEGER, STRING, ARRAY, PARAMS or custom, default null
