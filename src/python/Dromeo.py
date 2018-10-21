@@ -589,7 +589,8 @@ class Dromeo:
         self._patterns = None
         self._fallback = None
         self._prefix = None
-        for r in self._routes: r.dispose( )
+        if self._routes:
+            for r in self._routes: r.dispose( )
         self._routes = None
         return self
         

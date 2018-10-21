@@ -299,9 +299,12 @@ class Dromeo
         $this->_patterns = null;
         $this->_fallback = null;
         $this->_prefix = null;
-        foreach ( $this->_routes as $r ) 
+        if ( $this->_routes )
         {
-            $r->dispose( );
+            foreach ( $this->_routes as $r ) 
+            {
+                $r->dispose( );
+            }
         }
         $this->_routes = null;
         return $this;

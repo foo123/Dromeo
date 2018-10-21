@@ -727,9 +727,12 @@ Dromeo[PROTO] = {
         self._patterns = null;
         self._fallback = null;
         self._prefix = null;
-        for ( i=0,l=self._routes.length; i<l; i++ ) 
+        if ( self._routes )
         {
-            self._routes[i].dispose( );
+            for ( i=0,l=self._routes.length; i<l; i++ ) 
+            {
+                self._routes[i].dispose( );
+            }
         }
         self._routes = null;
         return self;
