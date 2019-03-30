@@ -93,12 +93,12 @@ dromeo.route( 'http://abc.org/users/abcd12/23/?preview=preview&foo=bar', 'get', 
 dromeo.route( 'http://abc.org/users/abcd12/23', '*', false );
 dromeo.route( 'http://literal.abc.org/', 'get', false );
 
-var uri = 'http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1'
+var uri = 'http://abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1'
 echo( );
 echo( 'Parse URI: ' + uri );
 echo( dromeo.parse( uri ) );
 
-uri = 'http::/abc.org/path/to/page/';
+uri = 'http://abc.org/path/to/page/';
 echo( );
 echo( 'Build URI' );
 echo( dromeo.build(uri, {
@@ -109,3 +109,8 @@ echo( dromeo.build(uri, {
     'def': [1, 2],
     'foo': {'soo':1}
 }) );
+
+var query = 'key1=val1&key2[key3]=val2&key2[key4]=val3&key5[key6][]=val4&key5[key6][]=val5&key7[0]=val6&key7[1]=val7';
+echo( );
+echo( 'Parse QUERY: ' + query );
+echo( Dromeo.unglue_params( query ) );

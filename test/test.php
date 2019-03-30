@@ -86,12 +86,12 @@ $dromeo->route( 'http://abc.org/users/abcd12/23/?preview=preview&foo=bar', 'get'
 $dromeo->route( 'http://abc.org/users/abcd12/23', '*', false );
 $dromeo->route( 'http://literal.abc.org/', 'get', false );
 
-$uri='http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1';
+$uri='http://abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1';
 echo( PHP_EOL );
 echo( 'Parse URI: ' . $uri . PHP_EOL );
 echo( print_r($dromeo->parse($uri), true) . PHP_EOL );
 
-$uri = 'http::/abc.org/path/to/page/';
+$uri = 'http://abc.org/path/to/page/';
 echo( PHP_EOL );
 echo( 'Build URI' . PHP_EOL );
 echo( $dromeo->build($uri, array(
@@ -102,3 +102,8 @@ echo( $dromeo->build($uri, array(
     'def' => array(1, 2),
     'foo' => array('soo'=>1)
 )) . PHP_EOL );
+
+$query = 'key1=val1&key2[key3]=val2&key2[key4]=val3&key5[key6][]=val4&key5[key6][]=val5&key7[0]=val6&key7[1]=val7';
+echo( PHP_EOL );
+echo( 'Parse QUERY: ' . $query . PHP_EOL );
+print_r( Dromeo::unglue_params( $query ) );

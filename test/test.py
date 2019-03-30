@@ -102,13 +102,13 @@ dromeo.route( 'http://abc.org/users/abcd12/23', '*', False )
 dromeo.route( 'http://literal.abc.org/', 'get', False )
 
 
-uri = 'http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1#foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2'
+uri = 'http://abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Btoo%5D=2&moo%5Bsoo%5D=1#foo%5Bsoo%5D=1&def%5B0%5D=1&def%5B1%5D=2'
 print( "\n" );
 print( 'Parse URI: ', uri )
 print( pprint.pformat(dromeo.parse( uri ), 4) )
 
-uri = 'http::/abc.org/path/to/page/'
-print( "\n" );
+uri = 'http://abc.org/path/to/page/'
+print( "\n" )
 print( 'Build URI' )
 print( dromeo.build(uri, {
     'abcd': [1, 2],
@@ -118,3 +118,8 @@ print( dromeo.build(uri, {
     'def': [1, 2],
     'foo': {'soo':1}
 }) )
+
+query = 'key1=val1&key2[key3]=val2&key2[key4]=val3&key5[key6][]=val4&key5[key6][]=val5&key7[0]=val6&key7[1]=val7'
+print( "\n" )
+print( 'Parse QUERY: ' + query )
+print( Dromeo.unglue_params( query ) )

@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 ##
 #   Dromeo
-#   Simple and Flexible Routing Framework for PHP, Python, Node/JS
-#   @version: 1.0.0
+#   Simple and Flexible Routing Framework for PHP, Python, Node.js / Browser / XPCOM Javascript
+#   @version: 1.1.0
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -66,6 +66,7 @@ class _G:
      100: "Continue"
     ,101: "Switching Protocols"
     ,102: "Processing"
+    ,103: "Early Hints"
     
     # 2xx Success
     ,200: "OK"
@@ -82,7 +83,7 @@ class _G:
     # 3xx Redirection
     ,300: "Multiple Choices"
     ,301: "Moved Permanently"
-    ,302: "Found"
+    ,302: "Found" #Previously "Moved temporarily"
     ,303: "See Other"
     ,304: "Not Modified"
     ,305: "Use Proxy"
@@ -170,26 +171,19 @@ class _G:
 
 class Route:
     
-    def __init__( self, delims, patterns, route, method ):
+    def __init__( self, delims, patterns, route, method, name=None, prefix='' ):
         self.__args__ = [ delims, patterns ]
         self.isParsed = False # lazy init
         self.handlers = [ ]
-        self.route = route
+        self.route = str(route)
+        self.prefix = str(prefix)
         self.method = method
         self.pattern = None
         self.captures = None
         self.literal = False
         self.namespace = None
-    
-    def parse( self ):
-        if self.isParsed: return self
-        r = makeRoute( self.__args__[0], self.__args__[1], self.route, self.method )
-        self.pattern = r[ 1 ]
-        self.captures = r[ 2 ]
-        self.literal = r[ 4 ] is True
-        self.__args__ = None
-        self.isParsed = True
-        return self
+        self.tpl = None
+        self.name = name if name else None
     
     def __del__(self):
         self.dispose()
@@ -199,15 +193,62 @@ class Route:
         self.isParsed = None
         self.handlers = None
         self.route = None
+        self.prefix = None
         self.pattern = None
         self.captures = None
+        self.tpl = None
         self.method = None
         self.literal = None
         self.namespace = None
+        self.name = None
         return self
+    
+    def parse( self ):
+        if self.isParsed: return self
+        r = makeRoute( self.__args__[0], self.__args__[1], self.route, self.method, self.prefix )
+        self.pattern = r[ 1 ]
+        self.captures = r[ 2 ]
+        self.tpl = r[ 5 ]
+        self.literal = r[ 4 ] is True
+        self.__args__ = None
+        self.isParsed = True
+        return self
+    
+    def make( self, params=dict(), strict=False ):
+        out = ''
+        route = self.route[len(self.prefix):] if self.prefix and len(self.prefix) else self.route
+        strict = strict is True
+        if not self.isParsed: self.parse( )
+        tpl = self.tpl
+        i = 0
+        l = len(tpl)
+        while i < l:
+            tpli = tpl[i]
+            i += 1
+            
+            if isinstance(tpli,str):
+                out += tpli
+            else:
+                if (tpli['name'] not in params) or (params[tpli['name']] is None):
+                    if tpli['optional']:
+                        continue
+                    else:
+                        raise RuntimeError('Dromeo: Route "'+self.name+'" (PATTERN: "'+route+'") missing parameter "'+tpli['name']+'"!')
+                else:
+                    param = str(params[tpli['name']])
+                    if strict and not re.search(tpli['re'], param):
+                        raise RuntimeError('Dromeo: Route "'+self.name+'" (PATTERN: "'+route+'") parameter "'+tpli['name']+'" value "'+param+'" does not match pattern!')
+                    part = tpli['tpl']
+                    j = 0
+                    k = len(part)
+                    while j < k:
+                        out += param if part[j] is True else part[j]
+                        j += 1
+        return out
 
 
 def parse_url(s, component=None, mode='php'):
+    # http://www.php2python.com/wiki/function.parse-url/
     global _G
     
     m = _G.uriParser[ mode ].match( s )
@@ -229,6 +270,7 @@ def parse_url(s, component=None, mode='php'):
     return uri
 
 def parse_str( s ):
+    # http://www.php2python.com/wiki/function.parse-str/
     global _G
     
     strArr = s.strip('&').split('&')
@@ -274,15 +316,17 @@ def parse_str( s ):
                 lastObj = obj
                 
                 if ('' != key and ' ' != key) or 0 == j:
-                    if key not in obj: obj[ key ] = { }
+                    if key not in obj: obj[ key ] = [ ] if (j+1 == len(keys)-1) and (''==keys[j+1] or ' '==keys[j+1]) else { }
                     obj = obj[ key ]
                 else: 
                     # To insert new dimension
-                    ct = -1
-                    for p in obj:
-                        if _G.digit.match(p) and int(p) > ct: ct = int(p)
-                    key = str(ct + 1)
-            lastObj[ key ] = value
+                    #ct = -1
+                    #for p in obj:
+                    #    if _G.digit.match(p) and int(p) > ct: ct = int(p)
+                    #key = str(ct + 1)
+                    key = True
+            if key is True: lastObj.append(value)
+            else: lastObj[ key ] = value
     return array
 
 def http_build_query_helper( key, val, arg_separator, PHP_QUERY_RFC3986 ):
@@ -326,7 +370,7 @@ def length( s ):
     
 
 def split( s, d1, d2=None ):
-    if not d2:
+    if (d1==d2) or not d2:
         return s.split( d1 )
     else:
         parts = [ ]
@@ -345,6 +389,8 @@ def makePattern( delims, patterns, pattern ):
     types = { }
     pattern = split( pattern, delims[2], delims[3] )
     p = [ ]
+    tpl = [ ]
+    tplPattern = None
     isPattern = False
     for i,pt in enumerate(pattern):
         if isPattern:
@@ -354,39 +400,49 @@ def makePattern( delims, patterns, pattern ):
                     numGroups += 1
                     # typecaster
                     if patterns[ pt ][ 1 ]: types[str(numGroups)] = patterns[ pt ][ 1 ]
+                    if tplPattern is None: tplPattern = p[ len(p)-1 ]
                 else:
                     m = _G.patternOr.match( pt )
                     if m:
                         p.append( '(' + '|'.join( map( re.escape, filter( length, m.group(1).split('|') ) ) ) + ')' )
                         numGroups += 1
+                        if tplPattern is None: tplPattern = p[ len(p)-1 ]
                     elif len(pt):
                         p.append( '(' + re.escape( pt ) + ')' )
                         numGroups += 1
+                        if tplPattern is None: tplPattern = p[ len(p)-1 ]
+            tpl.append( True )
             isPattern = False
         else:
-            if len(pt): p.append( re.escape( pt ) )
+            if len(pt):
+                p.append( re.escape( pt ) )
+                tpl.append( pt )
             isPattern = True
             
     if 1 == len(p) and 1 == numGroups:
         types['0'] = types['1'] if '1' in types else None
-        return [''.join(p), numGroups, types]
+        pat = ''.join(p)
+        return [pat, numGroups, types, tpl, tplPattern if tplPattern else pat]
     else:
         types['0'] = None
-        return ['(' + ''.join(p) + ')', numGroups+1, types]
+        pat = '(' + ''.join(p) + ')'
+        return [pat, numGroups+1, types, tpl, tplPattern if tplPattern else pat]
 
 
-def makeRoute( delims, patterns, route, method=None ):
+def makeRoute( delims, patterns, route, method=None, prefix=None ):
     global _G
     
     if delims[ 0 ] not in route:
         # literal route
-        return [ route, route, {}, method, True ]
+        return [ route, route, {}, method, True, [route[len(prefix):] if prefix and len(prefix) else route] ]
         
     parts = split( route, delims[ 0 ], delims[ 1 ] )
     isPattern = False
     pattern = ''
     numGroups = 0
     captures = { }
+    tpl = [ ]
+    handledPrefix = False
     
     for part in parts:
         
@@ -400,7 +456,7 @@ def makeRoute( delims, patterns, route, method=None ):
             if not len(p[ 0 ]):
                 # http://abc.org/{:user}/{:?id}
                 # assume pattern is %PART%
-                p[ 0 ] = '%PART%'
+                p[ 0 ] = delims[2]+'PART'+delims[3]
             capturePattern = makePattern( delims, patterns, p[ 0 ] )
             
             if len(p) > 1:
@@ -427,44 +483,61 @@ def makeRoute( delims, patterns, route, method=None ):
             numGroups += capturePattern[ 1 ]
             if isOptional: pattern += '?'
             if isCaptured: captures[ captureName ] = [captureIndex, patternTypecaster]
+            if isCaptured:
+                tpl.append({
+                    'name'        : captureName,
+                    'optional'    : isOptional,
+                    're'          : re.compile('^' + capturePattern[ 4 ] + '$'),
+                    'tpl'         : capturePattern[ 3 ]
+                });
             isPattern = False
         else:
             pattern += re.escape( part )
+            if not handledPrefix:
+                handledPrefix = True
+                if prefix and len(prefix):
+                    part = part[len(prefix):]
+            tpl.append( part )
             isPattern = True
     
-    return [ route, re.compile('^' + pattern + '$'), captures, method, False ]
+    return [ route, re.compile('^' + pattern + '$'), captures, method, False, tpl ]
 
 
-def addRoute( routes, delims, patterns, prefix, route, oneOff=False ):
+def addRoute( routes, named_routes, delims, patterns, prefix, route, oneOff=False ):
     if route and isinstance(route, dict) and 'route' in route and len(route['route'])>0 and 'handler' in route and callable(route['handler']):
         oneOff = (True == oneOff)
         handler = route['handler']
         defaults = dict(route['defaults']) if 'defaults' in route else {}
         types = dict(route['types']) if ('types' in route) and route['types'] else None
+        name = str(route['name']) if 'name' in route else None
         method = (list(map(lambda x: str(x).lower(),route['method'])) if isinstance(route['method'],list) else [str(route['method']).lower()]) if 'method' in route else ['*']
         if '*' in method: method = ['*']
         route = prefix + route['route']
         r = None
         for rt in routes:
-            if r == rt:
+            if route == rt.route:
                 r = rt
                 break
                 
         if not r:
-            r = Route( delims, patterns, route, method )
+            r = Route( delims, patterns, route, method, name, prefix )
             routes.append(r)
+            if r.name and len(r.name): named_routes[r.name] = r
+        
         r.handlers.append( [handler, defaults, types, oneOff, 0] )
 
 
-def addRoutes( routes, delims, patterns, prefix, args, oneOff=False ):
+def addRoutes( routes, named_routes, delims, patterns, prefix, args, oneOff=False ):
     for route in args:
-        addRoute(routes, delims, patterns, prefix, route, oneOff)
+        addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff)
 
 
-def clearRoute( routes, route ):
+def clearRoute( routes, named_routes, route ):
     l = len(routes)-1
     while l >= 0:
         if route == routes[ l ].route:
+            if routes[ l ].name and (routes[ l ].name in named_routes):
+                del named_routes[routes[ l ].name]
             routes[ l ].dispose( )
             del routes[l : l+1]
         l -= 1
@@ -495,7 +568,8 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
     
-    VERSION = "1.0.0"
+    VERSION = "1.1.0"
+    HTTP_STATUS = _G.HTTP_STATUS
     
     Route = Route
     
@@ -577,6 +651,7 @@ class Dromeo:
         self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' )
         self.definePattern( 'ALL',     '.+' )
         self._routes = [ ]
+        self._named_routes = { }
         self._fallback = False
         self._prefix = str(prefix) if prefix else ''
     
@@ -592,10 +667,12 @@ class Dromeo:
         if self._routes:
             for r in self._routes: r.dispose( )
         self._routes = None
+        self._named_routes = None
         return self
         
     def reset( self ):
         self._routes = [ ]
+        self._named_routes = { }
         self._fallback = False
         return self
     
@@ -651,13 +728,13 @@ class Dromeo:
         
     
     def redirect( self, url, httpHandler, statusCode=302, statusMsg=True ):
-        global _G
+        #global _G
         # redirection based on python HttpServer
         # https://docs.python.org/3/library/http.server.html, https://wiki.python.org/moin/BaseHttpServer
         if url and httpHandler:
             if statusMsg:
                 if True == statusMsg:
-                    if statusCode in _G.HTTP_STATUS: statusMsg = _G.HTTP_STATUS[statusCode]
+                    if statusCode in Dromeo.HTTP_STATUS: statusMsg = Dromeo.HTTP_STATUS[statusCode]
                     else: statusMsg = ''
                 httpHandler.send_response( statusCode, statusMsg )
             else:
@@ -677,7 +754,7 @@ class Dromeo:
         else:
             routes = args
         
-        addRoutes(self._routes, self._delims, self._patterns, self._prefix, routes)
+        addRoutes(self._routes, self._named_routes, self._delims, self._patterns, self._prefix, routes)
         return self
     
     
@@ -691,14 +768,15 @@ class Dromeo:
         else:
             routes = args
         
-        addRoutes(self._routes, self._delims, self._patterns, self._prefix, routes, True)
+        addRoutes(self._routes, self._named_routes, self._delims, self._patterns, self._prefix, routes, True)
         return self
     
     
     def off( self, route, handler=None ):
         if not route: return self
         
-        routes = self._routes 
+        routes = self._routes
+        named_routes = self._named_routes
         prefix = self._prefix
         
         if isinstance(route, dict):
@@ -723,9 +801,9 @@ class Dromeo:
                         del r.handlers[l : l+1]
                     l -= 1
                 if not len(r.handlers):
-                    clearRoute( routes, route )
+                    clearRoute( routes, named_routes, route )
             else:
-                clearRoute( routes, route, m )
+                clearRoute( routes, named_routes, route, m )
         
         elif isinstance(route, str) and len(route):
             route = prefix + route
@@ -745,9 +823,9 @@ class Dromeo:
                         del r.handlers[l : l+1]
                     l -= 1
                 if not len(r.handlers):
-                    clearRoute( routes, route )
+                    clearRoute( routes, named_routes, route )
             else:
-                clearRoute( routes, route )
+                clearRoute( routes, named_routes, route )
         
         return self
         
@@ -758,9 +836,12 @@ class Dromeo:
         return self
     
     
+    def make(self, named_route, params=dict(), strict=False):
+        return self._named_routes[named_route].make(params, strict) if named_route in self._named_routes else None
+    
     def route( self, r=None, method="*", breakOnFirstMatch=True ):
         if r:
-            breakOnFirstMatch = False != breakOnFirstMatch
+            breakOnFirstMatch = breakOnFirstMatch is not False
             method = str(method).lower() if method else "*"
             routes = self._routes[:] # copy, avoid mutation
             found = False

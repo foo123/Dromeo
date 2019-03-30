@@ -1,41 +1,62 @@
 <?php
+
 require(dirname(dirname(__FILE__)).'/src/php/Dromeo.php');
 
-function routeHandler( $params )
+function echo_($s)
 {
-    echo 'Route Handler Called' . PHP_EOL;
-    echo 'Route: ' . $params['route'] . PHP_EOL;
-    echo 'Params: ' . print_r( $params['data'], true ) . PHP_EOL;
+    echo ($s . PHP_EOL);
 }
 
-function fallbackHandler( $params )
+function defaultHandler()
 {
-    echo 'Fallback Handler Called' . PHP_EOL;
-    echo 'Route: ' . $params['route'] . PHP_EOL;
-    echo 'Params: ' . print_r( $params['data'], true ) . PHP_EOL;
+}
+
+$router = new Dromeo('https://example.com');
+
+$router->on(array(
+    array(
+        'route'=>'/{:user}/{:id}',
+        'name'=> 'route1',
+        'handler'=> 'defaultHandler' 
+    ),
+    array(
+        'route'=>'/{:user}{/%INT%:?id(1)}',
+        'name'=> 'route2',
+        'handler'=> 'defaultHandler'
+    ),
+    array(
+        'route'=>'/{:user}{/%INT%:?id(1)}{/%ALPHA%:?action(1)}',
+        'name'=> 'route4',
+        'handler'=> 'defaultHandler'
+    ),
+    array(
+        'route'=>'/bar/456',
+        'name'=> 'route3',
+        'handler'=> 'defaultHandler'
+    )
+));
+
+function make($route, $params=array(), $strict=false)
+{
+    global $router;
+    try {
+        $out = $router->make($route, $params, $strict);
+    } catch( \Exception $err ) {
+        $out = $err->getMessage();
+    }
+    return $out;
 }
 
 echo( 'Dromeo.VERSION = ' . Dromeo::VERSION . PHP_EOL );
 echo( PHP_EOL );
 
-
-$dromeo = new Dromeo( );
-
-$dromeo
-    ->fallback( 'fallbackHandler' )
-    ->on(
-      array('route'=>'http://abc.org/{%ARG(moo)%:?foo}', 
-      // same as using
-      //'method'=>'*',
-      'handler'=>'routeHandler', 
-      'defaults'=>array('foo'=>'moo','extra'=>'extra')
-      //'types'=>array('id'=> 'INTEGER')
-      )
-    )
-;
-
-$dromeo->route( 'http://abc.org/', '*', false );
-$dromeo->route( 'http://abc.org/?foo=1', '*', false );
-$dromeo->route( 'http://abc.org/?foo=1&moo=2', '*', false );
-$dromeo->route( 'http://abc.org/?moo[foo][]', '*', false );
-$dromeo->route( 'http://abc.org/?moo', '*', false );
+echo_(make('route1', array('user'=>'foo','id'=>'123')));
+echo_(make('route1', array('user'=>'foo','id'=>'123'), true));
+echo_(make('route1', array('user'=>'foo')));
+echo_(make('route2', array('user'=>'foo')));
+echo_(make('route2', array('user'=>'foo','id'=>'123')));
+echo_(make('route2', array('user'=>'foo','id'=>'123'), true));
+echo_(make('route3', array('user'=>'foo','id'=>'123')));
+echo_(make('route4', array('user'=>'foo')));
+echo_(make('route4', array('user'=>'foo','id'=>'123','action'=>'test')));
+echo_(make('route4', array('user'=>'foo','action'=>'test'), true));

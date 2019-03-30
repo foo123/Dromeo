@@ -1,7 +1,7 @@
 Dromeo
 ======
 
-A simple and flexible pattern routing framework for PHP, Python, Node/XPCOM/JS, ActionScript (TODO)
+A simple and flexible pattern routing framework for PHP, Python, Node.js / Browser / XPCOM Javascript
 
 
 ![Dromeo](/dromeo.jpg)
@@ -18,123 +18,24 @@ A simple and flexible pattern routing framework for PHP, Python, Node/XPCOM/JS, 
 * [Tao](https://github.com/foo123/Tao.js) A simple, tiny, isomorphic, precise and fast template engine for handling both string and live dom based templates
 * [ModelView](https://github.com/foo123/modelview.js) light-weight, isomorphic &amp; flexible MVVM framework for JavaScript/HTML5
 * [ModelView MVC jQueryUI Widgets](https://github.com/foo123/modelview-widgets) plug-n-play, state-full, full-MVC widgets for jQueryUI using modelview.js (e.g calendars, datepickers, colorpickers, tables/grids, etc..) (in progress)
-* [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node/XPCOM/JS, PHP, Python, ActionScript
-* [HtmlWidget](https://github.com/foo123/HtmlWidget) html widgets used as (template) plugins and/or standalone for PHP, Node/XPCOM/JS, Python both client and server-side
-* [Importer](https://github.com/foo123/Importer) simple class &amp; dependency manager and loader for PHP, Node/XPCOM/JS, Python
-* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for Node/XPCOM/JS, PHP, Python, ActionScript
-* [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for Node/XPCOM/JS, PHP, Python, ActionScript
-* [DateX](https://github.com/foo123/DateX) eXtended &amp; localised Date parsing, diffing, formatting and validation for Node/XPCOM/JS, Python, PHP
-* [GrammarTemplate](https://github.com/foo123/GrammarTemplate) versatile and intuitive grammar-based templating for PHP, Python, Node/XPCOM/JS, ActionScript
-* [Xpresion](https://github.com/foo123/Xpresion) eXpression parser engine (with custom functions &amp; variables support) for PHP, Python, Node/XPCOM/JS, ActionScript
-* [Dialect](https://github.com/foo123/Dialect) cross-platform SQL construction for PHP, Python, Node/XPCOM/JS
+* [Contemplate](https://github.com/foo123/Contemplate) a light-weight template engine for Node.js / Browser / XPCOM Javascript, PHP, Python
+* [HtmlWidget](https://github.com/foo123/HtmlWidget) html widgets used as (template) plugins and/or standalone for Node.js / Browser / XPCOM Javascript, PHP, Python both client and server-side
+* [Importer](https://github.com/foo123/Importer) simple class &amp; dependency manager and loader for Node.js / Browser / XPCOM Javascript, PHP, Python
+* [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for Node.js / Browser / XPCOM Javascript, PHP, Python
+* [Regex Analyzer/Composer](https://github.com/foo123/RegexAnalyzer) Regular Expression Analyzer and Composer for Node.js / Browser / XPCOM Javascript, PHP, Python
+* [DateX](https://github.com/foo123/DateX) eXtended &amp; localised Date parsing, diffing, formatting and validation for Node.js / Browser / XPCOM Javascript, PHP, Python
+* [GrammarTemplate](https://github.com/foo123/GrammarTemplate) versatile and intuitive grammar-based templating for Node.js / Browser / XPCOM Javascript, PHP, Python
+* [Xpresion](https://github.com/foo123/Xpresion) eXpression parser engine (with custom functions &amp; variables support) for Node.js / Browser / XPCOM Javascript, PHP, Python
+* [Dialect](https://github.com/foo123/Dialect) cross-platform SQL construction for Node.js / Browser / XPCOM Javascript, PHP, Python
 * [Simulacra](https://github.com/foo123/Simulacra) a simulation, algebraic, probability and combinatorics PHP package for scientific computations
-* [RT](https://github.com/foo123/RT) client-side real-time communication for Node/XPCOM/JS with support for Poll/BOSH/WebSockets
+* [RT](https://github.com/foo123/RT) client-side real-time communication for Node.js / Browser / XPCOM Javascript with support for Poll / BOSH / WebSockets
 * [Asynchronous](https://github.com/foo123/asynchronous.js) a simple manager for async, linearised, parallelised, interleaved &amp; sequential tasks for JavaScript
 
 
-**Example:**
+**Examples:**
 
-```javascript
+see `/test` folder
 
-var path = require('path'), 
-    Dromeo = require(path.join(__dirname, '../src/js/Dromeo.js')),
-    echo = console.log
-;
-
-function routeHandler( params )
-{
-    echo('Route Handler Called');
-    echo('Route: ' + params['route']);
-    echo('Params: ');
-    echo( params['data'] );
-}
-
-function fallbackHandler( params )
-{
-    echo('Fallback Handler Called');
-    echo('Route: ' + params['route']);
-    echo('Params: ');
-    echo( params['data'] );
-}
-
-echo( 'Dromeo.VERSION = ' + Dromeo.VERSION );
-echo( );
-
-var dromeo = new Dromeo( );
-
-dromeo
-    
-    .on(
-      
-      {
-      // route pattern
-      route: 'http://abc.org/{%ALPHA%:group}/{%ALNUM%:user}/{%NUMBR%:id}{/%moo|soo|too%:?foo(1)}{%ALL%:?rest}', 
-      // method, default is '*', any
-      //method: '*',
-      // route handler
-      handler: routeHandler, 
-      // default params (if any)
-      defaults: {'foo':'moo','extra-flag','extra'},
-      // optional type-casting for certain matches
-      types: {'id': Dromeo.TYPE('INTEGER')}
-      }
-    
-    )
-    
-    .fallback( fallbackHandler )
-;
-
-dromeo.route( 'http://abc.org/users/abcd12/23/soo' );
-
-var uri = 'http://abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1'
-echo( );
-echo( 'Parse URI: ' + uri );
-echo( dromeo.parse( uri ) );
-
-uri = 'http::/abc.org/path/to/page/';
-echo( );
-echo( 'Build URI' );
-echo( dromeo.build(uri, {
-    'abcd': [1, 2],
-    'foo': 1,
-    'moo': {'soo':1, 'too':2}
-}, {
-    'def': [1, 2],
-    'foo': {'soo':1}
-}) );
-
-```
-
-**output:**
-```text
-Dromeo.VERSION = 0.6.4
-
-Route Handler Called
-Route: http://abc.org/users/abcd12/23/soo
-Params: 
-{ foo: 'soo',
-  extra: 'extra',
-  group: 'users',
-  user: 'abcd12',
-  id: 23,
-  rest: null }
-
-Parse URI: http://abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1
-{ fragment: 'def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1',
-  query: 'abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&moo%5Btoo%5D=2',
-  path: '/path/to/page/',
-  host: 'abc.org',
-  scheme: 'http',
-  query_params: 
-   { abcd: { '0': '1', '1': '2' },
-     foo: '1',
-     moo: { soo: '1', too: '2' } },
-  fragment_params: { def: { '0': '1', '1': '2' }, foo: { soo: '1' } } }
-
-Build URI
-http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1
-
-```
 
 **Route Patterns:**
 
@@ -144,28 +45,28 @@ http::/abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=1&moo%5Bsoo%5D=1&mo
 //
 
 // match literal route
-'http::/abc.org/'
+'http://abc.org/'
 
 // match route and capture the last numeric part into 'id' param
-'http::/abc.org/{%NUMBR%:id}'
+'http://abc.org/{%NUMBR%:id}'
 
 // same as previous, numeric 'id' part is optional
-'http::/abc.org/{%NUMBR%:?id}'
+'http://abc.org/{%NUMBR%:?id}'
 
 // numeric part is optional but not captured (no param name given)
-'http::/abc.org/{%NUMBR%:?}'
+'http://abc.org/{%NUMBR%:?}'
 
 // numeric part is required but not captured (no param name given)
-'http::/abc.org/{%NUMBR%:}'
+'http://abc.org/{%NUMBR%:}'
 
 // part is required and captured as 'name', pattern is assumed %PART%=[^/]+ (capture everything between slashes)
-'http::/abc.org/{:name}'
+'http://abc.org/{:name}'
 
 // optional captured 'id' part is now the numeric pattern plus the leading '/'
-'http::/abc.org{/%NUMBR%:?id}'
+'http://abc.org{/%NUMBR%:?id}'
 
 // optional captured 'id' part is only the numeric pattern without the leading '/', i.e group 1
-'http::/abc.org{/%NUMBR%:?id(1)}'
+'http://abc.org{/%NUMBR%:?id(1)}'
 
 /* etc.. */
 
@@ -211,6 +112,21 @@ router.defineType( type, typecaster );
 // reset/remove routes and fallback handler
 router.reset( );
 
+// create a URI from named_route pattern with given parameter values
+// named routes are created by adding a name property when defining a route
+// NOTE: will throw error if parameter is missing and is required (not optional) in the route pattern
+// if strict is set to true will also try to match the parameter value based on route pattern type, eg numeric/alsphanumeric etc.. and will throw error if pattern test failed
+router.make(named_route[, params=Object()[, strict=false]]);
+
+// example
+router.on({
+    route: '/{:user}/{:id}',
+    name: 'my_root',
+    handler: function(){/* .. */}
+});
+console.log(router.make('my_root', {user:'foo',id:'123'}));
+// prints "/foo/123"
+
 // set/unset fallback handler
 router.fallback( [handlerFunc | false | null] );
 
@@ -220,6 +136,7 @@ router.[on|one]( routeObj | routeObjs | routePattern, handler );
 //
 //{
 //    route: '..', // the route pattern matched, needed
+//    name: '..', // create a named route to be referenced at will, for example in order to create URLs matching the route pattern with given parameters
 //    method: 'post', // the method (case-insensitive), default is '*', i.e any, can use array of methods as well, i.e ['get','post']
 //    handler: function(params){/*..*/}, // the route handler to be called, needed
 //    defaults: {/*..*/}, // any default and/or extra parameters to be used, if missing, and passed to handler, default is {}
@@ -277,4 +194,5 @@ var matched = router.route( url, method="*", breakOnFirstMatch=true );
 * add support for (http/request) method [DONE]
 * add support for extra passed defaults [DONE]
 * add support for (optional) type-casting of matched parameters [DONE]
-* add support for [RFC 6570 URI Template specification](http://tools.ietf.org/html/rfc6570)
+* add support for making string (URI) from route pattern with given parameters [DONE]
+* add support for [RFC 6570 URI Template specification](http://tools.ietf.org/html/rfc6570) (TODO?)

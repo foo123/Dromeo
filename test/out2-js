@@ -1,0 +1,12 @@
+Dromeo.VERSION = 1.1.0
+
+/foo/123
+/foo/123
+Dromeo: Route "route1" (PATTERN: "/{:user}/{:id}") missing parameter "id"!
+/foo
+/foo/123
+/foo/123
+/bar/456
+/foo
+/foo/123/test
+/foo/test

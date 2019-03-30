@@ -1,8 +1,8 @@
 /**
 *
 *   Dromeo
-*   Simple and Flexible Routing Framework for PHP, Python, Node/XPCOM/JS
-*   @version: 1.0.0
+*   Simple and Flexible Routing Framework for PHP, Python, Node.js / Browser / XPCOM Javascript
+*   @version: 1.1.0
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -18,20 +18,21 @@ else if ( ('function'===typeof(define))&&define.amd&&('function'===typeof(requir
     define(name,['require','exports','module'],function( ){return factory.call( root );});
 else if ( !(name in root) ) /* Browser/WebWorker/.. */
     (root[ name ] = (m=factory.call( root )))&&('function'===typeof(define))&&define.amd&&define(function( ){return m;} );
-}(  /* current root */          this, 
+}(  /* current root */          'undefined' !== typeof self ? self : this,
     /* module name */           "Dromeo",
     /* module factory */        function ModuleFactory__Dromeo( undef ) {
 "use strict";
 
-var __version__ = "1.0.0", 
-    
+var __version__ = "1.1.0",
+
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
     // 1xx Informational
      100: "Continue"
     ,101: "Switching Protocols"
     ,102: "Processing"
-    
+    ,103: "Early Hints"
+
     // 2xx Success
     ,200: "OK"
     ,201: "Created"
@@ -43,18 +44,18 @@ var __version__ = "1.0.0",
     ,207: "Multi-Status"
     ,208: "Already Reported"
     ,226: "IM Used"
-    
+
     // 3xx Redirection
     ,300: "Multiple Choices"
     ,301: "Moved Permanently"
-    ,302: "Found"
+    ,302: "Found" //Previously "Moved temporarily"
     ,303: "See Other"
     ,304: "Not Modified"
     ,305: "Use Proxy"
     ,306: "Switch Proxy"
     ,307: "Temporary Redirect"
     ,308: "Permanent Redirect"
-    
+
     // 4xx Client Error
     ,400: "Bad Request"
     ,401: "Unauthorized"
@@ -94,7 +95,7 @@ var __version__ = "1.0.0",
     ,497: "HTTP to HTTPS"
     ,498: "Token expired/invalid"
     ,499: "Client Closed Request"
-    
+
     // 5xx Server Error
     ,500: "Internal Server Error"
     ,501: "Not Implemented"
@@ -116,27 +117,28 @@ var __version__ = "1.0.0",
     ,598: "Network read timeout error"
     ,599: "Network connect timeout error"
     },
-    
+
     _patternOr = /^([^|]+\|.+)$/,
     _nested = /\[([^\]]*?)\]$/,
     _group = /\((\d+)\)$/,
-    trim_re = /^\s+|\s+$/g, re_escape = /([*+\[\]\(\)?^$\/\\:.])/g,
-    
+    trim_re = /^\s+|\s+$/g,
+    re_escape = /([*+\[\]\(\)?^$\/\\:.])/g,
+
     // auxilliaries
     PROTO = 'prototype', OP = Object[PROTO], AP = Array[PROTO], FP = Function[PROTO],
     toString = OP.toString, HAS = OP.hasOwnProperty,
     isNode = "undefined" !== typeof(global) && '[object global]' == toString.call(global),
     is_array = function( o ) { return (o instanceof Array) || ('[object Array]' === toString.call(o)); },
-    is_obj = function( o ) { return (o instanceof Object) || ('[object Object]' === toString.call(o)); },
+    is_obj = function( o ) { return /*(o instanceof Object) ||*/ ('[object Object]' === toString.call(o)); },
     is_string = function( o ) { return (o instanceof String) || ('[object String]' === toString.call(o)); },
     is_number = function( o ) { return (o instanceof Number) || ('[object Number]' === toString.call(o)); },
     is_callable = function( o ) { return "function" === typeof o; },
-    trim = String[PROTO].trim 
+    trim = String[PROTO].trim
         ? function( s ) { return s.trim( ); }
         : function( s ) { return s.replace(trim_re, ''); },
     length = function( s ) { return s.length > 0; },
     esc_regex = function( s ){ return s.replace(re_escape, '\\$1'); },
-    
+
     extend = function( o1, o2, deep ) {
         var k, v;
         deep = true === deep;
@@ -155,7 +157,7 @@ var __version__ = "1.0.0",
         }
         return o1;
     },
-    
+
     // adapted from https://github.com/kvz/phpjs
     uriParser = {
         php: /^(?:([^:\/?#]+):)?(?:\/\/()(?:(?:()(?:([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?))?()(?:(()(?:(?:[^?#\/]*\/)*)()(?:[^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
@@ -168,17 +170,17 @@ var __version__ = "1.0.0",
         var m = uriParser[mode || 'php'].exec( s ),
             uri = { }, i = 14//, parser, name
         ;
-        while ( i-- ) 
+        while ( i-- )
         {
             if ( m[ i ] )  uri[ uriComponent[ i ] ] = m[ i ]
         }
         if ( HAS.call(uri,'port') ) uri['port'] = parseInt(uri['port'], 10);
-        
-        if ( component ) 
+
+        if ( component )
         {
             return uri[ component.replace('PHP_URL_', '').toLowerCase( ) ] || null;
         }
-        
+
         /*if ( 'php' !== mode )
         {
             name = queryKey || 'queryKey';
@@ -202,10 +204,10 @@ var __version__ = "1.0.0",
             .split(')').join('%29')
             .split('*').join('%2A')
             //.split('~').join('%7E')
-        ;        
+        ;
     },
-    urldecode = function( str ) { 
-        return rawurldecode( ('' + str).split('+').join('%20') ); 
+    urldecode = function( str ) {
+        return rawurldecode( ('' + str).split('+').join('%20') );
     },
     urlencode = function( str ) {
         return rawurlencode( str ).split('%20').join('+');
@@ -218,7 +220,7 @@ var __version__ = "1.0.0",
             array = { }
         ;
 
-        for (i=0; i<sal; i++) 
+        for (i=0; i<sal; i++)
         {
             tmp = strArr[ i ].split( '=' );
             key = rawurldecode( trim(tmp[0]) );
@@ -226,23 +228,23 @@ var __version__ = "1.0.0",
 
             j = key.indexOf('\x00');
             if ( j > -1 ) key = key.slice(0, j);
-                
-            if ( key && '[' !== key.charAt(0) ) 
+
+            if ( key && '[' !== key.charAt(0) )
             {
                 keys = [ ];
-                
+
                 postLeftBracketPos = 0;
-                for (j=0; j<key.length; j++) 
+                for (j=0; j<key.length; j++)
                 {
-                    if ( '[' === key.charAt(j)  && !postLeftBracketPos ) 
+                    if ( '[' === key.charAt(j)  && !postLeftBracketPos )
                     {
                         postLeftBracketPos = j + 1;
                     }
-                    else if ( ']' === key.charAt(j) ) 
+                    else if ( ']' === key.charAt(j) )
                     {
-                        if ( postLeftBracketPos ) 
+                        if ( postLeftBracketPos )
                         {
-                            if ( !keys.length ) 
+                            if ( !keys.length )
                             {
                                 keys.push( key.slice(0, postLeftBracketPos - 1) );
                             }
@@ -252,13 +254,13 @@ var __version__ = "1.0.0",
                         }
                     }
                 }
-                
+
                 if ( !keys.length ) keys = [ key ];
-                
-                for (j=0; j<keys[0].length; j++) 
+
+                for (j=0; j<keys[0].length; j++)
                 {
                     chr = keys[0].charAt(j);
-                    if ( ' ' === chr || '.' === chr || '[' === chr ) 
+                    if ( ' ' === chr || '.' === chr || '[' === chr )
                     {
                         keys[0] = keys[0].substr(0, j) + '_' + keys[0].substr(j + 1);
                     }
@@ -266,34 +268,36 @@ var __version__ = "1.0.0",
                 }
 
                 obj = array;
-                for (j=0, keysLen=keys.length; j<keysLen; j++) 
+                for (j=0, keysLen=keys.length; j<keysLen; j++)
                 {
                     key = keys[ j ].replace(/^['"]|['"]$/g, '');
                     lastObj = obj;
-                    
-                    if ( ('' !== key && ' ' !== key) || 0 === j ) 
+
+                    if ( ('' !== key && ' ' !== key) || 0 === j )
                     {
-                        if ( undef === obj[key] ) obj[key] = { };
+                        if ( undef === obj[key] ) obj[key] = (j+1 === keysLen-1) && (''===keys[j+1] || ' '===keys[j+1]) ? [ ] : { };
                         obj = obj[ key ];
                     }
-                    else 
-                    { 
+                    else
+                    {
                         // To insert new dimension
-                        ct = -1;
-                        for ( p in obj ) 
+                        /*ct = -1;
+                        for ( p in obj )
                         {
-                            if ( HAS.call(obj,p) ) 
+                            if ( HAS.call(obj,p) )
                             {
-                                if ( +p > ct && p.match(/^\d+$/g) ) 
+                                if ( +p > ct && p.match(/^\d+$/g) )
                                 {
                                     ct = +p;
                                 }
                             }
                         }
-                        key = ct + 1;
+                        key = ct + 1;*/
+                        key = true;
                     }
                 }
-                lastObj[ key ] = value;
+                if ( true === key ) lastObj.push(value);
+                else lastObj[ key ] = value;
             }
         }
         return array;
@@ -317,30 +321,30 @@ var __version__ = "1.0.0",
     // adapted from https://github.com/kvz/phpjs
     http_build_query_helper = function( key, val, arg_separator, PHP_QUERY_RFC3986 ) {
         var k, tmp, encode = PHP_QUERY_RFC3986 ? rawurlencode : urlencode;
-        
+
         if ( true === val ) val = "1";
         else if ( false === val ) val = "0";
-        
-        if ( null != val ) 
+
+        if ( null != val )
         {
-            if ( "object" === typeof(val) ) 
+            if ( "object" === typeof(val) )
             {
                 tmp = [ ];
-                for ( k in val ) 
+                for ( k in val )
                 {
-                    if ( HAS.call(val,k) && null != val[k] ) 
+                    if ( HAS.call(val,k) && null != val[k] )
                     {
                         tmp.push( http_build_query_helper(key + "[" + k + "]", val[k], arg_separator, PHP_QUERY_RFC3986) );
                     }
                 }
                 return tmp.join( arg_separator );
-            } 
+            }
             else
             {
                 return encode(key) + "=" + encode(val);
-            } 
-        } 
-        else 
+            }
+        }
+        else
         {
             return '';
         }
@@ -350,8 +354,8 @@ var __version__ = "1.0.0",
 
         if ( arguments.length < 2 ) arg_separator = "&";
         if ( arguments.length < 3 ) PHP_QUERY_RFC3986 = false;
-        
-        for ( key in data ) 
+
+        for ( key in data )
         {
             if ( !HAS.call(data,key) ) continue;
             value = data[ key ];
@@ -361,9 +365,9 @@ var __version__ = "1.0.0",
 
         return tmp.join( arg_separator );
     },
-    
+
     split = function( s, d1, d2 ) {
-        if ( !d2 ) 
+        if ( (d1 === d2) || !d2  )
         {
             return s.split( d1 );
         }
@@ -381,12 +385,14 @@ var __version__ = "1.0.0",
             return parts;
         }
     },
-    
+
     makePattern = function( _delims, _patterns, pattern ) {
-        var i, l, isPattern, p, m, numGroups = 0, types = { };
-        
+        var i, l, isPattern, p, m, numGroups = 0, types = { }, tpl, tplPattern, pat;
+
         pattern = split( pattern, _delims[2], _delims[3] );
         p = [ ];
+        tpl = [ ];
+        tplPattern = null;
         l = pattern.length;
         isPattern = false;
         for (i=0; i<l; i++)
@@ -401,18 +407,22 @@ var __version__ = "1.0.0",
                         numGroups++;
                         // typecaster
                         if ( _patterns[ pattern[ i ] ][ 1 ] ) types[numGroups] = _patterns[ pattern[ i ] ][ 1 ];
+                        if ( null === tplPattern ) tplPattern = p[ p.length-1 ];
                     }
                     else if ( (m = pattern[ i ].match( _patternOr )) )
                     {
                         p.push( '(' + m[ 1 ].split('|').filter( length ).map( esc_regex ).join('|') + ')' );
                         numGroups++;
+                        if ( null === tplPattern ) tplPattern = p[ p.length-1 ];
                     }
                     else if ( pattern[ i ].length )
                     {
                         p.push( '(' + esc_regex( pattern[ i ] ) + ')' );
                         numGroups++;
+                        if ( null === tplPattern ) tplPattern = p[ p.length-1 ];
                     }
                 }
+                tpl.push( true );
                 isPattern = false;
             }
             else
@@ -420,6 +430,7 @@ var __version__ = "1.0.0",
                 if ( pattern[ i ].length )
                 {
                     p.push( esc_regex( pattern[ i ] ) );
+                    tpl.push( pattern[ i ] );
                 }
                 isPattern = true;
             }
@@ -427,24 +438,27 @@ var __version__ = "1.0.0",
         if ( 1 === p.length && 1 === numGroups )
         {
             types[0] = types[1] ? types[1] : null;
-            return [p.join(''), numGroups, types];
+            pat = p.join('');
+            return [pat, numGroups, types, tpl, tplPattern ? tplPattern : pat];
         }
         else
         {
             types[0] = null;
-            return ['(' + p.join('') + ')', numGroups+1, types];
+            pat = '(' + p.join('') + ')';
+            return [pat, numGroups+1, types, tpl, tplPattern ? tplPattern : pat];
         }
     },
 
-    makeRoute = function( _delims, _patterns, route, method ) {
+    makeRoute = function( _delims, _patterns, route, method, prefix ) {
         var parts, part, i, l, isOptional, isCaptured,
             isPattern, pattern, p, m, numGroups, patternTypecaster,
-            captures, captureName, capturePattern, captureIndex
+            captures, captureName, capturePattern, captureIndex,
+            tpl, handledPrefix
         ;
         if ( 0 > route.indexOf(_delims[ 0 ]) )
         {
             // literal route
-            return [ route, route, {}, method, true ];
+            return [ route, route, {}, method, true, [prefix && prefix.length ? route.slice(prefix.length) : route] ];
         }
         parts = split( route, _delims[ 0 ], _delims[ 1 ] );
         l = parts.length;
@@ -452,7 +466,9 @@ var __version__ = "1.0.0",
         pattern = '';
         numGroups = 0;
         captures = { };
-        
+        tpl = [ ];
+        handledPrefix = false;
+
         for (i=0; i<l; i++)
         {
             part = parts[ i ];
@@ -461,29 +477,29 @@ var __version__ = "1.0.0",
                 isOptional = false;
                 isCaptured = false;
                 patternTypecaster = null;
-                
+
                 // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
                 p = part.split( _delims[ 4 ] );
                 if ( !p[ 0 ].length )
                 {
                     // http://abc.org/{:user}/{:?id}
                     // assume pattern is %PART%
-                    p[ 0 ] = '%PART%';
+                    p[ 0 ] = _delims[2]+'PART'+_delims[3];
                 }
                 capturePattern = makePattern( _delims, _patterns, p[ 0 ] );
-                
+
                 if ( p.length > 1 )
                 {
                     captureName = trim( p[ 1 ] );
                     isOptional = (captureName.length && '?' === captureName.charAt(0));
                     if ( isOptional ) captureName = captureName.slice( 1 );
-                
+
                     if ( (m = captureName.match( _group )) )
                     {
                         captureName = captureName.slice(0, -m[0].length);
                         captureIndex = parseInt(m[1], 10);
-                        patternTypecaster = HAS.call(capturePattern[2],captureIndex) 
-                                ? capturePattern[2][captureIndex] 
+                        patternTypecaster = HAS.call(capturePattern[2],captureIndex)
+                                ? capturePattern[2][captureIndex]
                                 : null;
                         if ( captureIndex >= 0 && captureIndex < capturePattern[1] )
                         {
@@ -496,55 +512,72 @@ var __version__ = "1.0.0",
                     }
                     else
                     {
-                        patternTypecaster = capturePattern[2][0] 
-                                ? capturePattern[2][0] 
+                        patternTypecaster = capturePattern[2][0]
+                                ? capturePattern[2][0]
                                 : null;
                         captureIndex = numGroups + 1;
                     }
-                    
+
                     isCaptured = (captureName.length > 0);
                 }
-                
+
                 pattern += capturePattern[ 0 ];
                 numGroups += capturePattern[ 1 ];
                 if ( isOptional ) pattern += '?';
                 if ( isCaptured ) captures[ captureName ] = [captureIndex, patternTypecaster];
+                if ( isCaptured )
+                    tpl.push({
+                        name        : captureName,
+                        optional    : isOptional,
+                        re          : new RegExp('^' + capturePattern[ 4 ] + '$'),
+                        tpl         : capturePattern[ 3 ]
+                    });
                 isPattern = false;
             }
             else
             {
                 pattern += esc_regex( part );
+                if ( !handledPrefix )
+                {
+                    handledPrefix = true;
+                    if ( prefix && prefix.length )
+                        part = part.slice(prefix.length);
+                }
+                tpl.push( part );
                 isPattern = true;
             }
         }
-        return [ route, new RegExp('^' + pattern + '$'), captures, method, false ];
+        return [ route, new RegExp('^' + pattern + '$'), captures, method, false, tpl ];
     },
-    
-    clearRoute = function( routes, route ) {
+
+    clearRoute = function( routes, named_routes, route ) {
         var i, l = routes.length, r;
         for (i=l-1; i>=0; i--)
         {
             if ( route === routes[ i ].route )
             {
+                if ( route.name && HAS.call(named_routes,route.name) )
+                    delete named_routes[route.name];
                 routes[ i ].dispose( );
                 routes.splice( i, 1 );
             }
         }
     },
 
-    addRoute = function( routes, delims, patterns, prefix, route, oneOff ) {
-        if ( route && is_string(route.route) && route.route.length && 
+    addRoute = function( routes, named_routes, delims, patterns, prefix, route, oneOff ) {
+        if ( route && is_string(route.route) && route.route.length &&
             route.handler && is_callable(route.handler) )
         {
             oneOff = (true === oneOff);
             var handler = route.handler,
                 defaults = route.defaults || {},
                 types = route.types || null,
+                name = route.name || null,
                 method = route.method ? (route.method.map ? route.method.map(function(x){return x.toLowerCase()}) : [route.method.toLowerCase()]) : ['*'],
                 h, r, i, l;
             route = prefix + route.route;
             if ( in_array('*', method) ) method = ['*'];
-            
+
             r = null;
             for(i=0,l=routes.length; i<l; i++)
             {
@@ -556,63 +589,133 @@ var __version__ = "1.0.0",
             }
             if ( !r )
             {
-                r = new Route( delims, patterns, route, method );
+                r = new Route( delims, patterns, route, method, name, prefix );
                 routes.push( r );
+                if ( r.name && r.name.length ) named_routes[r.name] = r;
             }
             r.handlers.push( [handler, defaults, types, oneOff, 0] );
         }
     },
 
-    addRoutes = function( routes, delims, patterns, prefix, args, oneOff ) {
+    addRoutes = function( routes, named_routes, delims, patterns, prefix, args, oneOff ) {
         var route, i;
         oneOff = !!oneOff;
         for (i=0; i<args.length; i++)
         {
             route = args[i];
-            addRoute(routes, delims, patterns, prefix, route, oneOff);
+            addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff);
         }
     }
 ;
 
-function Route( delims, patterns, route, method ) 
+function Route( delims, patterns, route, method, name, prefix )
 {
     var self = this;
     self.__args__ = [ delims, patterns ];
     self.isParsed = false; // lazy init
     self.handlers = [ ];
-    self.route = route;
+    self.route = String(route);
+    self.prefix = String(prefix);
     self.method = method;
     self.pattern = null;
     self.captures = null;
     self.literal = false;
     self.namespace = null;
-    
-    self.parse = function( ) {
-        if ( self.isParsed ) return self;
-        var r = makeRoute( self.__args__[0], self.__args__[1], self.route, self.method );
-        self.pattern = r[ 1 ];
-        self.captures = r[ 2 ];
-        self.literal = true === r[ 4 ];
-        self.__args__ = null;
-        self.isParsed = true;
-        return self;
-    };
-    
-    self.dispose = function( ) {
+    self.tpl = null;
+    self.name = name || null;
+}
+Route[PROTO] = {
+    constructor: Route,
+    __args__: null,
+    isParsed: false,
+    handlers: null,
+    route: null,
+    prefix: null,
+    pattern: null,
+    captures: null,
+    tpl: null,
+    method: null,
+    literal: null,
+    namespace: null,
+    name: null,
+
+    dispose: function( ) {
+        var self = this;
         self.__args__ = null;
         self.isParsed = null;
         self.handlers = null;
         self.route = null;
+        self.prefix = null;
         self.pattern = null;
         self.captures = null;
+        self.tpl = null;
         self.method = null;
         self.literal = null;
         self.namespace = null;
+        self.name = null;
         return self;
-    };
-}
+    },
 
-var Dromeo = function Dromeo( route_prefix ) {
+    parse: function( ) {
+        var self = this;
+        if ( self.isParsed ) return self;
+        var r = makeRoute( self.__args__[0], self.__args__[1], self.route, self.method, self.prefix );
+        self.pattern = r[ 1 ];
+        self.captures = r[ 2 ];
+        self.tpl = r[ 5 ];
+        self.literal = true === r[ 4 ];
+        self.__args__ = null;
+        self.isParsed = true;
+        return self;
+    },
+
+    make: function( params, strict ) {
+        var self = this, out = '', i, l, j, k, param, part, tpl,
+            route = self.prefix && self.prefix.length ? self.route.slice(self.prefix.length) : self.route;
+        params = params || {};
+        strict = true === strict;
+        if ( !self.isParsed ) self.parse( );
+        tpl = self.tpl;
+        for(i=0,l=tpl.length; i<l; i++)
+        {
+            if ( is_string(tpl[i]) )
+            {
+                out += tpl[i];
+            }
+            else
+            {
+                if ( !HAS.call(params, tpl[i].name) || (null == params[tpl[i].name]) )
+                {
+                    if ( tpl[i].optional )
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        throw new ReferenceError('Dromeo: Route "'+self.name+'" (PATTERN: "'+route+'") missing parameter "'+tpl[i].name+'"!');
+                    }
+                }
+                else
+                {
+                    param = String(params[tpl[i].name]);
+                    if ( strict && !tpl[i].re.test(param) )
+                    {
+                        throw new ReferenceError('Dromeo: Route "'+self.name+'" (PATTERN: "'+route+'") parameter "'+tpl[i].name+'" value "'+param+'" does not match pattern!');
+                    }
+                    part = tpl[i].tpl;
+                    for(j=0,k=part.length; j<k; j++)
+                    {
+                        out += true === part[j] ? param : part[j];
+                    }
+                }
+            }
+        }
+        return out;
+    }
+};
+
+function Dromeo( route_prefix )
+{
     var self = this;
     // constructor factory method
     if ( !(self instanceof Dromeo) ) return new Dromeo( route_prefix );
@@ -629,6 +732,7 @@ var Dromeo = function Dromeo( route_prefix ) {
     self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' );
     self.definePattern( 'ALL',     '.+' );
     self._routes = [ ];
+    self._named_routes = { };
     self._fallback = false;
     self._prefix = null!=route_prefix ? String(route_prefix) : '';
 };
@@ -642,6 +746,7 @@ function type_to_array( v ) { return is_array(v) ? v : [v]; }
 function type_to_params( v ) { return is_string(v) ? Dromeo.unglue_params(v) : v; }
 
 Dromeo.VERSION = __version__;
+Dromeo.HTTP_STATUS = HTTP_STATUS;
 Dromeo.Route = Route;
 Dromeo.TYPES = {
  'INTEGER'  : type_to_int
@@ -673,21 +778,21 @@ Dromeo.parse_components = function( s, query_p, fragment_p ) {
     var self = this, COMPONENTS = { };
     if ( s )
     {
-        if ( arguments.length < 3 ) fragment_p = 'fragment_params';
-        if ( arguments.length < 2 ) query_p = 'query_params';
-        
+        if ( arguments.length < 3 || null == fragment_p ) fragment_p = 'fragment_params';
+        if ( arguments.length < 2 || null == query_p ) query_p = 'query_params';
+
         COMPONENTS = parse_url( s );
-        
-        if ( query_p ) 
+
+        if ( query_p )
         {
-            if ( COMPONENTS[ 'query' ] ) 
+            if ( COMPONENTS[ 'query' ] )
                 COMPONENTS[ query_p ] = self.unglue_params( COMPONENTS[ 'query' ] );
             else
                 COMPONENTS[ query_p ] = { };
         }
         if ( fragment_p )
         {
-            if ( COMPONENTS[ 'fragment' ] ) 
+            if ( COMPONENTS[ 'fragment' ] )
                 COMPONENTS[ fragment_p ] = self.unglue_params( COMPONENTS[ 'fragment' ] );
             else
                 COMPONENTS[ fragment_p ] = { };
@@ -699,8 +804,8 @@ Dromeo.parse_components = function( s, query_p, fragment_p ) {
 Dromeo.build_components = function( baseUrl, query, hash, q, h ) {
     var self = this,
         url = '' + baseUrl;
-    if ( arguments.length < 5 ) h = '#';
-    if ( arguments.length < 4 ) q = '?';
+    if ( arguments.length < 5 || null == h ) h = '#';
+    if ( arguments.length < 4 || null == q ) q = '?';
     if ( query )  url += q + self.glue_params( query );
     if ( hash )  url += h + self.glue_params( hash );
     return url;
@@ -714,13 +819,14 @@ Dromeo.TYPE = function( type ) {
 };
 Dromeo[PROTO] = {
     constructor: Dromeo,
-    
+
     _delims: null,
     _patterns: null,
     _routes: null,
+    _named_routes: null,
     _fallback: false,
     _prefix: '',
-    
+
     dispose: function( ) {
         var self = this, i, l;
         self._delims = null;
@@ -729,25 +835,27 @@ Dromeo[PROTO] = {
         self._prefix = null;
         if ( self._routes )
         {
-            for ( i=0,l=self._routes.length; i<l; i++ ) 
+            for ( i=0,l=self._routes.length; i<l; i++ )
             {
                 self._routes[i].dispose( );
             }
         }
         self._routes = null;
+        self._named_routes = null;
         return self;
     },
-    
+
     reset: function( ) {
         var self = this;
         self._routes = [ ];
+        self._named_routes = { };
         self._fallback = false;
         return self;
     },
-    
+
     /*debug: function( ) {
-        console.log('Routes: '); 
-        console.log(this._routes); 
+        console.log('Routes: ');
+        console.log(this._routes);
         console.log('Fallback: ');
         console.log(this._fallback);
     },*/
@@ -765,51 +873,51 @@ Dromeo[PROTO] = {
         }
         return self;
     },
-    
+
     definePattern: function( className, subPattern, typecaster )  {
         var self = this;
-        if ( typecaster && 
+        if ( typecaster &&
             is_string(typecaster) && typecaster.length &&
-            HAS.call(Dromeo.TYPES,typecaster) 
+            HAS.call(Dromeo.TYPES,typecaster)
         ) typecaster = Dromeo.TYPES[ typecaster ];
-        
+
         if ( !typecaster || !is_callable(typecaster) ) typecaster = null;
         self._patterns[ className ] = [subPattern, typecaster];
         return self;
     },
-    
+
     dropPattern: function( className ) {
         var self = this, patterns = self._patterns;
-        if ( HAS.call(patterns, className ) ) 
+        if ( HAS.call(patterns, className ) )
             delete patterns[ className ];
         return self;
     },
-    
+
     defineType: function( type, caster )  {
         Dromeo.defType( type, caster );
         return this;
     },
-    
+
     // build/glue together a uri component from a params object
     glue: function( params ) {
         return Dromeo.glue_params( params );
     },
-    
+
     // unglue/extract params object from uri component
     unglue: function( s ) {
         return Dromeo.unglue_params( s );
     },
-    
+
     // parse and extract uri components and optional query/fragment params
     parse: function( s, query_p, fragment_p ) {
         return Dromeo.parse_components( s, query_p, fragment_p );
     },
-    
+
     // build a url from baseUrl plus query/hash params
     build: function( baseUrl, query, hash, q, h ) {
         return Dromeo.build_components( baseUrl, query, hash, q, h );
     },
-    
+
     redirect: function( url, response, statusCode, statusMsg ) {
         // node redirection based on http module
         // http://nodejs.org/api/http.html#http_http
@@ -825,10 +933,10 @@ Dromeo[PROTO] = {
             {
                 if ( arguments.length < 3 ) statusCode = 302;
                 if ( arguments.length < 4 ) statusMsg = true;
-                
+
                 if ( statusMsg )
                 {
-                    if ( true === statusMsg ) statusMsg = HTTP_STATUS[statusCode] || '';
+                    if ( true === statusMsg ) statusMsg = Dromeo.HTTP_STATUS[statusCode] || '';
                     response.writeHead( statusCode, statusMsg, {"Location": url} );
                 }
                 else
@@ -840,12 +948,12 @@ Dromeo[PROTO] = {
         }
         return this;
     },
-    
+
     on: function( /* var args here .. */ ) {
         var self = this, args = arguments,
             args_len = args.length, routes
         ;
-        
+
         if ( 1 === args_len )
         {
             routes = is_array(args[ 0 ]) ? args[ 0 ] : [args[ 0 ]];
@@ -858,15 +966,15 @@ Dromeo[PROTO] = {
         {
             routes = args;
         }
-        addRoutes( self._routes, self._delims, self._patterns, self._prefix, routes );
+        addRoutes( self._routes, self._named_routes, self._delims, self._patterns, self._prefix, routes );
         return self;
     },
-    
+
     one: function( /* var args here .. */ ) {
         var self = this, args = arguments,
             args_len = args.length, routes
         ;
-        
+
         if ( 1 === args_len )
         {
             routes = is_array(args[ 0 ]) ? args[ 0 ] : [args[ 0 ]];
@@ -879,18 +987,19 @@ Dromeo[PROTO] = {
         {
             routes = args;
         }
-        addRoutes( self._routes, self._delims, self._patterns, self._prefix, routes, true );
+        addRoutes( self._routes, self._named_routes, self._delims, self._patterns, self._prefix, routes, true );
         return self;
     },
-    
+
     off: function( route, handler ) {
-        var self = this, 
-            routes = self._routes, 
-            prefix = self._prefix, 
+        var self = this,
+            routes = self._routes,
+            named_routes = self._named_routes,
+            prefix = self._prefix,
             i, r, l;
-        
+
         if ( !route ) return self;
-        
+
         if ( is_obj(route) )
         {
             handler = route.handler || handler;
@@ -906,9 +1015,9 @@ Dromeo[PROTO] = {
                     break;
                 }
             }
-            
+
             if ( !r ) return self;
-            
+
             if ( handler && is_callable(handler) )
             {
                 l = r.handlers.length;
@@ -918,11 +1027,11 @@ Dromeo[PROTO] = {
                         r.handlers.splice( i, 1 );
                 }
                 if ( !r.handlers.length )
-                    clearRoute( routes, route );
+                    clearRoute( routes, named_routes, route );
             }
             else
             {
-                clearRoute( routes, route );
+                clearRoute( routes, named_routes, route );
             }
         }
         else if ( is_string(route) && route.length )
@@ -937,7 +1046,7 @@ Dromeo[PROTO] = {
                     break;
                 }
             }
-            
+
             if ( !r ) return self;
 
             if ( handler && is_callable(handler) )
@@ -949,16 +1058,16 @@ Dromeo[PROTO] = {
                         r.handlers.splice( i, 1 );
                 }
                 if ( !r.handlers.length )
-                    clearRoute( routes, route );
+                    clearRoute( routes, named_routes, route );
             }
             else
             {
-                clearRoute( routes, route );
+                clearRoute( routes, named_routes, route );
             }
         }
         return self;
     },
-    
+
     fallback: function( handler ) {
         var self = this;
         if ( 1 > arguments.length ) handler = false;
@@ -966,14 +1075,19 @@ Dromeo[PROTO] = {
             self._fallback = handler;
         return self;
     },
-    
+
+    make: function( named_route, params, strict ) {
+        var routes = this._named_routes;
+        return HAS.call(routes, named_route) ? routes[named_route].make( params, strict ) : null;
+    },
+
     route: function( r, method, breakOnFirstMatch ) {
-        var self = this, routes, 
+        var self = this, routes,
             route, params, defaults, type,
             i, l, lh, h, m, v, g, groupIndex, groupTypecaster, typecaster,
             handlers, handler, found;
         ;
-        
+
         if ( r )
         {
             breakOnFirstMatch = false !== breakOnFirstMatch;
@@ -981,19 +1095,19 @@ Dromeo[PROTO] = {
             routes = self._routes.slice( ); // copy, avoid mutation
             found = false;
             l = routes.length;
-            for (i=0; i<l; i++) 
+            for (i=0; i<l; i++)
             {
                 route = routes[ i ];
                 if ( !in_array(method, route.method) && ('*' !== route.method[0]) ) continue;
                 if ( !route.isParsed ) route.parse( ); // lazy init
                 m = route.literal ? (route.pattern === r ? [] : null) : r.match(route.pattern);
                 if ( null == m ) continue;
-                
+
                 found = true;
-                
+
                 // copy handlers, avoid mutation during calls
                 handlers = route.handlers.slice( 0 );
-                
+
                 // make calls
                 lh = handlers.length;
                 for (h=0; h<lh; h++)
@@ -1001,7 +1115,7 @@ Dromeo[PROTO] = {
                     handler = handlers[ h ];
                     // handler is oneOff and already called
                     if ( handler[3] && handler[4] ) continue;
-                    
+
                     defaults = handler[1];
                     type = handler[2];
                     params = {
@@ -1013,13 +1127,13 @@ Dromeo[PROTO] = {
                     };
                     if ( !route.literal )
                     {
-                        for (v in route.captures) 
+                        for (v in route.captures)
                         {
                             if ( !HAS.call(route.captures,v) ) continue;
                             g = route.captures[ v ];
                             groupIndex = g[0];
                             groupTypecaster = g[1];
-                            if ( m[ groupIndex ] ) 
+                            if ( m[ groupIndex ] )
                             {
                                 if ( type && HAS.call(type, v ) && type[ v ] )
                                 {
@@ -1038,17 +1152,17 @@ Dromeo[PROTO] = {
                                     params.data[ v ] = m[ groupIndex ];
                                 }
                             }
-                            else if ( !HAS.call(params.data, v ) ) 
+                            else if ( !HAS.call(params.data, v ) )
                             {
                                 params.data[ v ] = null;
                             }
                         }
                     }
-                    
+
                     handler[4] = 1; // handler called
                     handler[0]( params );
                 }
-                
+
                 // remove called oneOffs
                 /*for (h=route.handlers.length-1; h>=0; h--)
                 {
@@ -1058,7 +1172,7 @@ Dromeo[PROTO] = {
                 }
                 if ( !route.handlers.length )
                     clearRoute( self._routes, route.route );*/
-                
+
                 if ( breakOnFirstMatch ) return true;
             }
             if ( found ) return true;
