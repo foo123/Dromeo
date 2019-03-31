@@ -5,21 +5,24 @@ function literalRouteHandler( $params )
 {
     echo 'Literal Route Handler Called' . PHP_EOL;
     echo 'Route: ' . $params['route'] . PHP_EOL;
-    echo 'Params: ' . print_r( $params['data'], true ) . PHP_EOL;
+    echo 'Params: '  . PHP_EOL;
+    var_dump($params['data']);
 }
 
 function routeHandler( $params )
 {
     echo 'Route Handler Called' . PHP_EOL;
     echo 'Route: ' . $params['route'] . PHP_EOL;
-    echo 'Params: ' . print_r( $params['data'], true ) . PHP_EOL;
+    echo 'Params: '  . PHP_EOL;
+    var_dump($params['data']);
 }
 
 function fallbackHandler( $params )
 {
     echo 'Fallback Handler Called' . PHP_EOL;
     echo 'Route: ' . $params['route'] . PHP_EOL;
-    echo 'Params: ' . print_r( $params['data'], true ) . PHP_EOL;
+    echo 'Params: '  . PHP_EOL;
+    var_dump($params['data']);
 }
 
 echo( 'Dromeo.VERSION = ' . Dromeo::VERSION . PHP_EOL );

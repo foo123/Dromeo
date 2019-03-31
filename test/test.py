@@ -34,8 +34,8 @@ def routeHandler( params ):
     print('Route: ', params['route'])
     print('Params: ', pprint.pformat(params['data'], 4))
 
-def fallbackHandler( route, params ):
-    print('Fallabck Handler Called')
+def fallbackHandler( params ):
+    print('Fallback Handler Called')
     print('Route: ', params['route'])
     print('Params: ', pprint.pformat(params['data'], 4))
 

@@ -76,13 +76,21 @@ class DromeoRoute
         return $this;
     }
 
+    public function match( $route, $method='*')
+    {
+        if ( !in_array($method, $this->method) && '*' !== $this->method[0] ) return null;
+        if ( !$this->isParsed ) $this->parse( ); // lazy init
+        $route = (string)$route;
+        $matched = $this->literal ? ($this->pattern === $route) : preg_match($this->pattern, $route, $match, 0, 0);
+        return $matched ? ($this->literal ? true : $match) : null;
+    }
+    
     public function make( $params=array(), $strict=false )
     {
         $out = '';
-        $route = $this->prefix && strlen($this->prefix) ? substr($this->route, strlen($this->prefix)) : $this->route;
         $params = (array)$params;
         $strict = true === $strict;
-        if ( !$this->isParsed ) $this->parse( );
+        if ( !$this->isParsed ) $this->parse( ); // lazy init
         $tpl = $this->tpl;
         for($i=0,$l=count($tpl); $i<$l; $i++)
         {
@@ -100,7 +108,7 @@ class DromeoRoute
                     }
                     else
                     {
-                        throw new \RuntimeException('Dromeo: Route "'.$this->name.'" (PATTERN: "'.$route.'") missing parameter "'.$tpl[$i]->name.'"!');
+                        throw new \RuntimeException('Dromeo: Route "'.$this->name.'" (Pattern: "'.$this->route.'") missing parameter "'.$tpl[$i]->name.'"!');
                     }
                 }
                 else
@@ -108,7 +116,7 @@ class DromeoRoute
                     $param = (string)$params[$tpl[$i]->name];
                     if ( $strict && !preg_match($tpl[$i]->re,$param, $m) )
                     {
-                        throw new \RuntimeException('Dromeo: Route "'.$this->name.'" (PATTERN: "'.$route.'") parameter "'.$tpl[$i]->name.'" value "'.$param.'" does not match pattern!');
+                        throw new \RuntimeException('Dromeo: Route "'.$this->name.'" (Pattern: "'.$this->route.'") parameter "'.$tpl[$i]->name.'" value "'.$param.'" does not match pattern!');
                     }
                     $part = $tpl[$i]->tpl;
                     for($j=0,$k=count($part); $j<$k; $j++)
@@ -119,6 +127,40 @@ class DromeoRoute
             }
         }
         return $out;
+    }
+    
+    public function sub($match, &$data, $type=null)
+    {
+        if ( !$this->isParsed || $this->literal ) return $this;
+        foreach ($this->captures as $v=>$g)
+        {
+            $groupIndex = $g[0];
+            $groupTypecaster = $g[1];
+            if ( isset( $match[ $groupIndex ] ) && $match[ $groupIndex ] )
+            {
+                if ( $type && isset($type[$v]) )
+                {
+                    $typecaster = $type[$v];
+                    if ( is_string($typecaster) && isset(Dromeo::$TYPES[$typecaster]) )
+                        $typecaster = Dromeo::$TYPES[$typecaster];
+                    $data[ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $match[ $groupIndex ]) : $match[ $groupIndex ];
+                }
+                elseif ( $groupTypecaster )
+                {
+                    $typecaster = $groupTypecaster;
+                    $data[ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $match[ $groupIndex ]) : $match[ $groupIndex ];
+                }
+                else
+                {
+                    $data[ $v ] = $match[ $groupIndex ];
+                }
+            }
+            elseif ( !isset($data[ $v ]) )
+            {
+                $data[ $v ] = null;
+            }
+        }
+        return $this;
     }
 }
 
@@ -613,18 +655,16 @@ class Dromeo
 
     public function route( $r=null, $method="*", $breakOnFirstMatch=true )
     {
+        $method = $method ? strtolower($method) : '*';
         if ( $r )
         {
             $breakOnFirstMatch = false !== $breakOnFirstMatch;
-            $method = $method ? strtolower($method) : '*';
             $routes = array_merge(array(), $this->_routes); // copy, avoid mutation
             $found = false;
             foreach ($routes as $route)
             {
-                if ( !in_array($method, $route->method) && '*' !== $route->method[0] ) continue;
-                if ( !$route->isParsed ) $route->parse( ); // lazy init
-                $matched = $route->literal ? ($route->pattern === $r) : preg_match($route->pattern, $r, $m, 0, 0);
-                if ( !$matched  ) continue;
+                $match = $route->match($r, $method);
+                if ( !$match  ) continue;
 
                 $found = true;
 
@@ -647,37 +687,7 @@ class Dromeo
                         'fallback'=> false,
                         'data'=> array_merge_recursive(array(), $handler->defaults)
                     );
-                    if ( !$route->literal )
-                    {
-                        foreach ($route->captures as $v=>$g)
-                        {
-                            $groupIndex = $g[0];
-                            $groupTypecaster = $g[1];
-                            if ( isset( $m[ $groupIndex ] ) && $m[ $groupIndex ] )
-                            {
-                                if ( $handler->types && isset($handler->types[$v]) )
-                                {
-                                    $typecaster = $handler->types[$v];
-                                    if ( is_string($typecaster) && isset(self::$TYPES[$typecaster]) )
-                                        $typecaster = self::$TYPES[$typecaster];
-                                    $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $groupIndex ]) : $m[ $groupIndex ];
-                                }
-                                elseif ( $groupTypecaster )
-                                {
-                                    $typecaster = $groupTypecaster;
-                                    $params['data'][ $v ] = is_callable($typecaster) ? call_user_func($typecaster, $m[ $groupIndex ]) : $m[ $groupIndex ];
-                                }
-                                else
-                                {
-                                    $params['data'][ $v ] = $m[ $groupIndex ];
-                                }
-                            }
-                            elseif ( !isset($params['data'][ $v ]) )
-                            {
-                                $params['data'][ $v ] = null;
-                            }
-                        }
-                    }
+                    $route->sub($match, $params['data'], $handler->types);
 
                     $handler->called = 1; // handler called
                     call_user_func( $handler->handler, $params );
@@ -699,7 +709,7 @@ class Dromeo
         }
         if ( $this->_fallback )
         {
-            call_user_func( $this->_fallback, array('route'=>$r, 'pattern'=> null, 'fallback'=> true, 'data'=>null) );
+            call_user_func( $this->_fallback, array('route'=>$r,  'method'=> $method, 'pattern'=> null, 'fallback'=> true, 'data'=>null) );
             return false;
         }
         return false;
@@ -732,7 +742,7 @@ class Dromeo
             $method = isset($route['method']) ? (is_array($route['method']) ? array_map('strtolower',$route['method']) : array(strtolower((string)$route['method']))) : array('*');
             if ( in_array('*', $method) ) $method = array('*');
 
-            $route = $prefix . $route['route'];
+            $route = (string)$route['route'];
 
             $routeInstance = null;
             foreach ( $routes  as &$rt )
@@ -772,7 +782,7 @@ class Dromeo
         if ( false === strpos($route, $_delims[ 0 ]) )
         {
             // literal route
-            return array( $route, $route, array(), $method, true, array($prefix && strlen($prefix) ? substr($route,strlen($prefix)) : $route) );
+            return array( $route, $prefix && strlen($prefix) ? $prefix.$route : $route, array(), $method, true, array($route) );
         }
 
         $parts = self::split( $route, $_delims[ 0 ], $_delims[ 1 ] );
@@ -782,7 +792,8 @@ class Dromeo
         $numGroups = 0;
         $captures = array( );
         $tpl = array( );
-        $handledPrefix = false;
+        if ( $prefix && strlen($prefix) )
+            $pattern .= preg_quote( $prefix, '/' );
 
         for ($i=0; $i<$l; $i++)
         {
@@ -852,12 +863,6 @@ class Dromeo
             else
             {
                 $pattern .= preg_quote( $part, '/' );
-                if ( !$handledPrefix )
-                {
-                    $handledPrefix = true;
-                    if ( $prefix && strlen($prefix) )
-                        $part = substr($part, strlen($prefix));
-                }
                 $tpl[] = $part;
                 $isPattern = true;
             }

@@ -115,16 +115,16 @@ router.reset( );
 // create a URI from named_route pattern with given parameter values
 // named routes are created by adding a name property when defining a route
 // NOTE: will throw error if parameter is missing and is required (not optional) in the route pattern
-// if strict is set to true will also try to match the parameter value based on route pattern type, eg numeric/alsphanumeric etc.. and will throw error if pattern test failed
+// if strict is set to true will also try to match the parameter value based on route pattern type, eg numeric/alphanumeric etc.. and will throw error if pattern test failed
 router.make(named_route[, params=Object()[, strict=false]]);
 
 // example
 router.on({
     route: '/{:user}/{:id}',
-    name: 'my_root',
+    name: 'my_route',
     handler: function(){/* .. */}
 });
-console.log(router.make('my_root', {user:'foo',id:'123'}));
+console.log(router.make('my_route', {user:'foo',id:'123'}));
 // prints "/foo/123"
 
 // set/unset fallback handler

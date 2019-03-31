@@ -2,76 +2,106 @@ Dromeo.VERSION = 1.1.0
 
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar
-Params: Array
-(
-    [foo] => soo
-    [once] => once
-    [default_part] => 1
-    [group] => users
-    [user] => abcd12
-    [id] => 23
-    [rest] => ?preview=prev+iew&foo=bar
-)
-
+Params: 
+array(7) {
+  ["foo"]=>
+  string(3) "soo"
+  ["once"]=>
+  string(4) "once"
+  ["default_part"]=>
+  int(1)
+  ["group"]=>
+  string(5) "users"
+  ["user"]=>
+  string(6) "abcd12"
+  ["id"]=>
+  int(23)
+  ["rest"]=>
+  string(25) "?preview=prev+iew&foo=bar"
+}
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar
-Params: Array
-(
-    [foo] => soo
-    [const_pattern] => const_pattern
-    [group] => users
-    [user] => abcd12
-    [id] => 23
-    [rest] => ?preview=prev+iew&foo=bar
-)
-
+Params: 
+array(6) {
+  ["foo"]=>
+  string(3) "soo"
+  ["const_pattern"]=>
+  string(13) "const_pattern"
+  ["group"]=>
+  string(5) "users"
+  ["user"]=>
+  string(6) "abcd12"
+  ["id"]=>
+  int(23)
+  ["rest"]=>
+  string(25) "?preview=prev+iew&foo=bar"
+}
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/?preview=preview&foo=bar
-Params: Array
-(
-    [foo] => moo
-    [extra] => extra
-    [multiple_methods] => 1
-    [group] => users
-    [user] => abcd12
-    [id] => 23
-    [preview] => 
-    [rest] => /?preview=preview&foo=bar
-)
-
+Params: 
+array(8) {
+  ["foo"]=>
+  string(3) "moo"
+  ["extra"]=>
+  string(5) "extra"
+  ["multiple_methods"]=>
+  int(1)
+  ["group"]=>
+  string(5) "users"
+  ["user"]=>
+  string(6) "abcd12"
+  ["id"]=>
+  int(23)
+  ["preview"]=>
+  NULL
+  ["rest"]=>
+  string(25) "/?preview=preview&foo=bar"
+}
 Route Handler Called
 Route: http://abc.org/users/abcd12/23/?preview=preview&foo=bar
-Params: Array
-(
-    [foo] => moo
-    [const_pattern] => const_pattern
-    [group] => users
-    [user] => abcd12
-    [id] => 23
-    [rest] => /?preview=preview&foo=bar
-)
-
+Params: 
+array(6) {
+  ["foo"]=>
+  string(3) "moo"
+  ["const_pattern"]=>
+  string(13) "const_pattern"
+  ["group"]=>
+  string(5) "users"
+  ["user"]=>
+  string(6) "abcd12"
+  ["id"]=>
+  int(23)
+  ["rest"]=>
+  string(25) "/?preview=preview&foo=bar"
+}
 Route Handler Called
 Route: http://abc.org/users/abcd12/23
-Params: Array
-(
-    [foo] => moo
-    [const_pattern] => const_pattern
-    [group] => users
-    [user] => abcd12
-    [id] => 23
-    [rest] => 
-)
-
+Params: 
+array(6) {
+  ["foo"]=>
+  string(3) "moo"
+  ["const_pattern"]=>
+  string(13) "const_pattern"
+  ["group"]=>
+  string(5) "users"
+  ["user"]=>
+  string(6) "abcd12"
+  ["id"]=>
+  int(23)
+  ["rest"]=>
+  NULL
+}
 Literal Route Handler Called
 Route: http://literal.abc.org/
-Params: Array
-(
-    [foo] => moo
-    [extra] => extra
-    [literal_route] => 1
-)
-
+Params: 
+array(3) {
+  ["foo"]=>
+  string(3) "moo"
+  ["extra"]=>
+  string(5) "extra"
+  ["literal_route"]=>
+  int(1)
+}
 
 Parse URI: http://abc.org/path/to/page/?abcd%5B0%5D=1&abcd%5B1%5D=2&foo=a%20string%20with%20spaces%20and%20%2B&moo%5Bsoo%5D=1&moo%5Btoo%5D=2#def%5B0%5D=1&def%5B1%5D=2&foo%5Bsoo%5D=1
 Array

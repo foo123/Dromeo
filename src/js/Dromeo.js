@@ -213,11 +213,11 @@ var __version__ = "1.1.0",
         return rawurlencode( str ).split('%20').join('+');
     },
     parse_str = function( str ) {
-        var strArr = str.replace(/^&/, '').replace(/&$/, '').split('&'),
+        var strArr = str.replace(/^&+|&+$/g, '').split('&'),
             sal = strArr.length,
             i, j, ct, p, lastObj, obj, chr, tmp, key, value,
-            postLeftBracketPos, keys, keysLen,
-            array = { }
+            postLeftBracketPos, keys, keysLen, lastkey,
+            array = { }, possibleLists = [ ], prevkey, prevobj
         ;
 
         for (i=0; i<sal; i++)
@@ -267,15 +267,18 @@ var __version__ = "1.1.0",
                     if ( '[' === chr ) break;
                 }
 
-                obj = array;
+                obj = array; key = null; lastObj = obj;
+                lastkey = keys.length ? trim(keys[ keys.length-1 ].replace(/^['"]|['"]$/g, '')) : null;
                 for (j=0, keysLen=keys.length; j<keysLen; j++)
                 {
+                    prevkey = key;
                     key = keys[ j ].replace(/^['"]|['"]$/g, '');
+                    prevobj = lastObj;
                     lastObj = obj;
 
-                    if ( ('' !== key && ' ' !== key) || 0 === j )
+                    if ( '' !== trim(key) || 0 === j )
                     {
-                        if ( undef === obj[key] ) obj[key] = (j+1 === keysLen-1) && (''===keys[j+1] || ' '===keys[j+1]) ? [ ] : { };
+                        if ( !HAS.call(obj,key) ) obj[key] = (j+1 === keysLen-1) && (''===lastkey) ? [ ] : { };
                         obj = obj[ key ];
                     }
                     else
@@ -296,19 +299,80 @@ var __version__ = "1.1.0",
                         key = true;
                     }
                 }
-                if ( true === key ) lastObj.push(value);
-                else lastObj[ key ] = value;
+                if ( true === key )
+                {
+                    lastObj.push(value);
+                }
+                else
+                {
+                    if ( key == +key )
+                        possibleLists.push({key:prevkey,obj:prevobj});
+                    lastObj[ key ] = value;
+                }
+            }
+        }
+        for(i=possibleLists.length-1; i>=0; i--)
+        {
+            // safe to pass multiple times same obj, it is possible
+            obj = possibleLists[i].key ? possibleLists[i].obj[possibleLists[i].key] : possibleLists[i].obj;
+            if ( is_numeric_array(obj) )
+            {
+                obj = array_values(obj);
+                if ( possibleLists[i].key )
+                    possibleLists[i].obj[possibleLists[i].key] = obj;
+                else
+                    array = obj;
             }
         }
         return array;
+    },
+    array_keys = function( o ) {
+        if ( 'function' === typeof (Object.keys) ) return Object.keys(o);
+        var v, k, l;
+        if ( is_array(o) )
+        {
+            v = new Array(l=o.length);
+            for(k=0; k<l; k++)
+                v[k] = String(k);
+        }
+        else
+        {
+            v = [];
+            for(k in o)
+                if ( HAS.call(o, k) )
+                    v.push(k);
+        }
+        return v;
+    },
+    array_values = function( o ) {
+        if ( is_array(o) ) return o;
+        if ( 'function' === typeof (Object.values) ) return Object.values(o);
+        var v = [], k;
+        for(k in o)
+            if ( HAS.call(o, k) )
+                v.push(o[k]);
+        return v;
+    },
+    is_numeric_array = function( o ) {
+        if ( is_array(o) ) return true;
+        if ( is_obj(o) )
+        {
+            var k = array_keys(o), i, l = k.length;
+            for(i=0; i<l; i++)
+                if ( i !== +k[i] ) return false;
+            return true;
+        }
+        return false;
     },
     in_array = function( v, a, strict ) {
         var i, l = a.length;
         if ( true === strict )
         {
-            for(i=0; i<l; i++)
+            // Array.indexOf uses strict equality
+            return (0 < l) && (-1 !== a.indexOf(v));
+            /*for(i=0; i<l; i++)
                 if ( v===a[i] )
-                    return true;
+                    return true;*/
         }
         else
         {
@@ -453,12 +517,12 @@ var __version__ = "1.1.0",
         var parts, part, i, l, isOptional, isCaptured,
             isPattern, pattern, p, m, numGroups, patternTypecaster,
             captures, captureName, capturePattern, captureIndex,
-            tpl, handledPrefix
+            tpl
         ;
         if ( 0 > route.indexOf(_delims[ 0 ]) )
         {
             // literal route
-            return [ route, route, {}, method, true, [prefix && prefix.length ? route.slice(prefix.length) : route] ];
+            return [ route, prefix && prefix.length ? prefix+route : route, {}, method, true, [route] ];
         }
         parts = split( route, _delims[ 0 ], _delims[ 1 ] );
         l = parts.length;
@@ -467,7 +531,7 @@ var __version__ = "1.1.0",
         numGroups = 0;
         captures = { };
         tpl = [ ];
-        handledPrefix = false;
+        if ( prefix && prefix.length )  pattern += esc_regex( prefix );
 
         for (i=0; i<l; i++)
         {
@@ -537,12 +601,6 @@ var __version__ = "1.1.0",
             else
             {
                 pattern += esc_regex( part );
-                if ( !handledPrefix )
-                {
-                    handledPrefix = true;
-                    if ( prefix && prefix.length )
-                        part = part.slice(prefix.length);
-                }
                 tpl.push( part );
                 isPattern = true;
             }
@@ -575,7 +633,7 @@ var __version__ = "1.1.0",
                 name = route.name || null,
                 method = route.method ? (route.method.map ? route.method.map(function(x){return x.toLowerCase()}) : [route.method.toLowerCase()]) : ['*'],
                 h, r, i, l;
-            route = prefix + route.route;
+            route = route.route;
             if ( in_array('*', method) ) method = ['*'];
 
             r = null;
@@ -669,12 +727,20 @@ Route[PROTO] = {
         return self;
     },
 
+    match: function( route, method ) {
+        var self = this;
+        method = method || '*';
+        if ( !in_array(method, self.method) && '*' !== self.method[0] ) return null;
+        if ( !self.isParsed ) self.parse(); // lazy init
+        route = String(route);
+        return self.literal ? (route === self.pattern ? [] : null) : route.match(self.pattern);
+    },
+
     make: function( params, strict ) {
-        var self = this, out = '', i, l, j, k, param, part, tpl,
-            route = self.prefix && self.prefix.length ? self.route.slice(self.prefix.length) : self.route;
+        var self = this, out = '', i, l, j, k, param, part, tpl;
         params = params || {};
         strict = true === strict;
-        if ( !self.isParsed ) self.parse( );
+        if ( !self.isParsed ) self.parse( ); // lazy init
         tpl = self.tpl;
         for(i=0,l=tpl.length; i<l; i++)
         {
@@ -692,7 +758,7 @@ Route[PROTO] = {
                     }
                     else
                     {
-                        throw new ReferenceError('Dromeo: Route "'+self.name+'" (PATTERN: "'+route+'") missing parameter "'+tpl[i].name+'"!');
+                        throw new ReferenceError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") missing parameter "'+tpl[i].name+'"!');
                     }
                 }
                 else
@@ -700,7 +766,7 @@ Route[PROTO] = {
                     param = String(params[tpl[i].name]);
                     if ( strict && !tpl[i].re.test(param) )
                     {
-                        throw new ReferenceError('Dromeo: Route "'+self.name+'" (PATTERN: "'+route+'") parameter "'+tpl[i].name+'" value "'+param+'" does not match pattern!');
+                        throw new ReferenceError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") parameter "'+tpl[i].name+'" value "'+param+'" does not match pattern!');
                     }
                     part = tpl[i].tpl;
                     for(j=0,k=part.length; j<k; j++)
@@ -711,6 +777,44 @@ Route[PROTO] = {
             }
         }
         return out;
+    },
+
+    sub: function( match, data, type ) {
+        var self = this, v, g, groupIndex, groupTypecaster, typecaster;
+
+        if ( !self.isParsed || self.literal ) return self;
+
+        for (v in self.captures)
+        {
+            if ( !HAS.call(self.captures,v) ) continue;
+            g = self.captures[ v ];
+            groupIndex = g[0];
+            groupTypecaster = g[1];
+            if ( match[ groupIndex ] )
+            {
+                if ( type && HAS.call(type, v ) && type[ v ] )
+                {
+                    typecaster = type[ v ];
+                    if ( is_string(typecaster) && HAS.call(Dromeo.TYPES,typecaster) )
+                        typecaster = Dromeo.TYPES[typecaster];
+                    data[ v ] = is_callable(typecaster) ? typecaster( match[ groupIndex ] ) : match[ groupIndex ];
+                }
+                else if ( groupTypecaster )
+                {
+                    typecaster = groupTypecaster;
+                    data[ v ] = is_callable(typecaster) ? typecaster( match[ groupIndex ] ) : match[ groupIndex ];
+                }
+                else
+                {
+                    data[ v ] = match[ groupIndex ];
+                }
+            }
+            else if ( !HAS.call(data, v ) )
+            {
+                data[ v ] = null;
+            }
+        }
+        return self;
     }
 };
 
@@ -1005,7 +1109,7 @@ Dromeo[PROTO] = {
             handler = route.handler || handler;
             route = route.route;
             if ( !route ) return self;
-            route = prefix + route;
+            route = String(route);
             r = null;
             for(i=0,l=routes.length; i<l; i++)
             {
@@ -1036,7 +1140,7 @@ Dromeo[PROTO] = {
         }
         else if ( is_string(route) && route.length )
         {
-            route = prefix + route;
+            route = String(route);
             r = null;
             for(i=0,l=routes.length; i<l; i++)
             {
@@ -1084,24 +1188,21 @@ Dromeo[PROTO] = {
     route: function( r, method, breakOnFirstMatch ) {
         var self = this, routes,
             route, params, defaults, type,
-            i, l, lh, h, m, v, g, groupIndex, groupTypecaster, typecaster,
-            handlers, handler, found;
+            i, l, lh, h, match, handlers, handler, found;
         ;
+        method = method ? String(method).toLowerCase( ) : '*';
 
         if ( r )
         {
             breakOnFirstMatch = false !== breakOnFirstMatch;
-            method = method ? String(method).toLowerCase( ) : '*';
             routes = self._routes.slice( ); // copy, avoid mutation
             found = false;
             l = routes.length;
             for (i=0; i<l; i++)
             {
                 route = routes[ i ];
-                if ( !in_array(method, route.method) && ('*' !== route.method[0]) ) continue;
-                if ( !route.isParsed ) route.parse( ); // lazy init
-                m = route.literal ? (route.pattern === r ? [] : null) : r.match(route.pattern);
-                if ( null == m ) continue;
+                match = route.match(r, method);
+                if ( null == match ) continue;
 
                 found = true;
 
@@ -1125,39 +1226,8 @@ Dromeo[PROTO] = {
                         fallback: false,
                         data: extend({}, defaults, true)
                     };
-                    if ( !route.literal )
-                    {
-                        for (v in route.captures)
-                        {
-                            if ( !HAS.call(route.captures,v) ) continue;
-                            g = route.captures[ v ];
-                            groupIndex = g[0];
-                            groupTypecaster = g[1];
-                            if ( m[ groupIndex ] )
-                            {
-                                if ( type && HAS.call(type, v ) && type[ v ] )
-                                {
-                                    typecaster = type[ v ];
-                                    if ( is_string(typecaster) && HAS.call(Dromeo.TYPES,typecaster) )
-                                        typecaster = Dromeo.TYPES[typecaster];
-                                    params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
-                                }
-                                else if ( groupTypecaster )
-                                {
-                                    typecaster = groupTypecaster;
-                                    params.data[ v ] = is_callable(typecaster) ? typecaster( m[ groupIndex ] ) : m[ groupIndex ];
-                                }
-                                else
-                                {
-                                    params.data[ v ] = m[ groupIndex ];
-                                }
-                            }
-                            else if ( !HAS.call(params.data, v ) )
-                            {
-                                params.data[ v ] = null;
-                            }
-                        }
-                    }
+
+                    route.sub(match, params.data, type);
 
                     handler[4] = 1; // handler called
                     handler[0]( params );
@@ -1179,7 +1249,7 @@ Dromeo[PROTO] = {
         }
         if ( self._fallback )
         {
-            self._fallback( {route: r, pattern: null, fallback: true, data: null} );
+            self._fallback( {route: r, method: method, pattern: null, fallback: true, data: null} );
             return false;
         }
         return false;

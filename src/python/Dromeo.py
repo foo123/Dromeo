@@ -57,6 +57,39 @@ if not _urllib:
         return s
 
 
+def array_keys(o):
+    if isinstance(o, (list,tuple)): return list(map(str, range(0,len(o))))
+    if isinstance(o, dict): return list(o.keys())
+    return []
+
+def array_values(o):
+    if isinstance(o, (list,tuple)): return list(o)
+    if isinstance(o, dict):
+        if is_numeric_array(o):
+            # get values in list-order by ascending index
+            v = []
+            l = len(o)
+            i = 0
+            while i < l:
+                v.append(o[str(i)])
+                i += 1
+            return v
+        else:
+            return list(o.values())
+    return []
+
+def is_numeric_array( o ):
+    if isinstance(o,list): return True
+    if isinstance(o,dict):
+        k = array_keys(o)
+        i = 0
+        l = len(k)
+        while i < l:
+            if str(i) not in k: return False
+            i += 1
+        return True
+    return False
+    
 # (protected) global properties
 class _G:
 
@@ -183,7 +216,7 @@ class Route:
         self.literal = False
         self.namespace = None
         self.tpl = None
-        self.name = name if name else None
+        self.name = str(name) if name else None
     
     def __del__(self):
         self.dispose()
@@ -214,11 +247,16 @@ class Route:
         self.isParsed = True
         return self
     
+    def match( self, route, method='*' ):
+        if (method not in self.method) and ('*' != self.method[0]): return None
+        if not self.isParsed: self.parse() # lazy init
+        route = str(route)
+        return (True if self.pattern == route else None) if self.literal else self.pattern.match( route )
+    
     def make( self, params=dict(), strict=False ):
         out = ''
-        route = self.route[len(self.prefix):] if self.prefix and len(self.prefix) else self.route
         strict = strict is True
-        if not self.isParsed: self.parse( )
+        if not self.isParsed: self.parse( ) # lazy init
         tpl = self.tpl
         i = 0
         l = len(tpl)
@@ -233,11 +271,11 @@ class Route:
                     if tpli['optional']:
                         continue
                     else:
-                        raise RuntimeError('Dromeo: Route "'+self.name+'" (PATTERN: "'+route+'") missing parameter "'+tpli['name']+'"!')
+                        raise RuntimeError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") missing parameter "'+tpli['name']+'"!')
                 else:
                     param = str(params[tpli['name']])
                     if strict and not re.search(tpli['re'], param):
-                        raise RuntimeError('Dromeo: Route "'+self.name+'" (PATTERN: "'+route+'") parameter "'+tpli['name']+'" value "'+param+'" does not match pattern!')
+                        raise RuntimeError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") parameter "'+tpli['name']+'" value "'+param+'" does not match pattern!')
                     part = tpli['tpl']
                     j = 0
                     k = len(part)
@@ -245,6 +283,26 @@ class Route:
                         out += param if part[j] is True else part[j]
                         j += 1
         return out
+    
+    def sub(self, match, data, type=None):
+        if (not self.isParsed) or self.literal: return self
+        for v,g in self.captures.items( ):
+            groupIndex = g[0]
+            groupTypecaster = g[1]
+            if match.group( groupIndex ):
+                if type and (v in type) and type[ v ]:
+                    typecaster = type[ v ]
+                    if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
+                        typecaster = Dromeo.TYPES[ typecaster ]
+                    data[ v ] = typecaster( match.group( groupIndex ) ) if callable(typecaster) else match.group( groupIndex )
+                elif groupTypecaster:
+                    typecaster = groupTypecaster
+                    data[ v ] = typecaster( match.group( groupIndex ) ) if callable(typecaster) else match.group( groupIndex )
+                else:
+                    data[ v ] = match.group( groupIndex )
+            elif v not in data: 
+                data[ v ] = None
+        return self
 
 
 def parse_url(s, component=None, mode='php'):
@@ -259,12 +317,11 @@ def parse_url(s, component=None, mode='php'):
         i -= 1
         if m.group( i ):  uri[ _G.uriComponent[ i ] ] = m.group( i )
     
-    if 'port' in uri: uri['port'] = int(uri['port'])
+    if 'port' in uri: uri['port'] = int(uri['port'], 10)
     
     if component: 
         component = component.replace('PHP_URL_', '').lower( )
-        if component in uri: return uri[ component ]
-        else: return None
+        return uri[ component ] if component in uri else None
     
     if 'source' in uri: del uri['source']
     return uri
@@ -275,7 +332,8 @@ def parse_str( s ):
     
     strArr = s.strip('&').split('&')
     array = { }
-
+    possibleLists = [ ]
+    
     for tmp in strArr:
         tmp = tmp.split( '=' )
         key = rawurldecode( tmp[0].strip() )
@@ -311,12 +369,17 @@ def parse_str( s ):
                 if '[' == chr: break
 
             obj = array
+            key = None
+            lastObj = obj
+            lastkey = keys[ len(keys)-1 ].strip( "'\"" ).strip( ) if len(keys) else None
             for j in range(len(keys)):
+                prevkey = key
                 key = keys[ j ].strip( "'\"" )
+                prevobj = lastObj
                 lastObj = obj
                 
-                if ('' != key and ' ' != key) or 0 == j:
-                    if key not in obj: obj[ key ] = [ ] if (j+1 == len(keys)-1) and (''==keys[j+1] or ' '==keys[j+1]) else { }
+                if '' != key.strip() or 0 == j:
+                    if key not in obj: obj[ key ] = [ ] if (j+1 == len(keys)-1) and (''==lastkey) else { }
                     obj = obj[ key ]
                 else: 
                     # To insert new dimension
@@ -325,8 +388,27 @@ def parse_str( s ):
                     #    if _G.digit.match(p) and int(p) > ct: ct = int(p)
                     #key = str(ct + 1)
                     key = True
-            if key is True: lastObj.append(value)
-            else: lastObj[ key ] = value
+            if key is True:
+                lastObj.append(value)
+            else:
+                try:
+                    ikey = int(key, 10)
+                except BaseException as exc:
+                    ikey = -1
+                if 0 <= ikey:
+                    possibleLists.append({'key':prevkey,'obj':prevobj})
+                lastObj[ key ] = value
+    i = len(possibleLists)-1
+    while i >= 0:
+        # safe to pass multiple times same obj, it is possible
+        obj = possibleLists[i]['obj'][possibleLists[i]['key']] if possibleLists[i]['key'] else possibleLists[i]['obj']
+        if is_numeric_array(obj):
+            obj = array_values(obj)
+            if possibleLists[i]['key']:
+                possibleLists[i]['obj'][possibleLists[i]['key']] = obj
+            else: 
+                array = obj
+        i -= 1
     return array
 
 def http_build_query_helper( key, val, arg_separator, PHP_QUERY_RFC3986 ):
@@ -434,7 +516,7 @@ def makeRoute( delims, patterns, route, method=None, prefix=None ):
     
     if delims[ 0 ] not in route:
         # literal route
-        return [ route, route, {}, method, True, [route[len(prefix):] if prefix and len(prefix) else route] ]
+        return [ route, prefix+route if prefix and len(prefix) else route, {}, method, True, [route] ]
         
     parts = split( route, delims[ 0 ], delims[ 1 ] )
     isPattern = False
@@ -442,7 +524,8 @@ def makeRoute( delims, patterns, route, method=None, prefix=None ):
     numGroups = 0
     captures = { }
     tpl = [ ]
-    handledPrefix = False
+    if prefix and len(prefix):
+        pattern += re.escape( prefix )
     
     for part in parts:
         
@@ -493,10 +576,6 @@ def makeRoute( delims, patterns, route, method=None, prefix=None ):
             isPattern = False
         else:
             pattern += re.escape( part )
-            if not handledPrefix:
-                handledPrefix = True
-                if prefix and len(prefix):
-                    part = part[len(prefix):]
             tpl.append( part )
             isPattern = True
     
@@ -512,7 +591,7 @@ def addRoute( routes, named_routes, delims, patterns, prefix, route, oneOff=Fals
         name = str(route['name']) if 'name' in route else None
         method = (list(map(lambda x: str(x).lower(),route['method'])) if isinstance(route['method'],list) else [str(route['method']).lower()]) if 'method' in route else ['*']
         if '*' in method: method = ['*']
-        route = prefix + route['route']
+        route = str(route['route'])
         r = None
         for rt in routes:
             if route == rt.route:
@@ -784,7 +863,7 @@ class Dromeo:
             route = route['route'] if 'route' in route else None
             if not route: return self
             
-            route = prefix + route
+            route = str(route)
             r = None
             for rt in routes:
                 if route == rt.route:
@@ -806,7 +885,7 @@ class Dromeo:
                 clearRoute( routes, named_routes, route, m )
         
         elif isinstance(route, str) and len(route):
-            route = prefix + route
+            route = str(route)
             r = None
             for rt in routes:
                 if route == rt.route:
@@ -840,16 +919,15 @@ class Dromeo:
         return self._named_routes[named_route].make(params, strict) if named_route in self._named_routes else None
     
     def route( self, r=None, method="*", breakOnFirstMatch=True ):
+        method = str(method).lower() if method else "*"
         if r:
             breakOnFirstMatch = breakOnFirstMatch is not False
-            method = str(method).lower() if method else "*"
             routes = self._routes[:] # copy, avoid mutation
             found = False
             for route in routes:
-                if method not in route.method and '*' != route.method[0]: continue
-                if not route.isParsed: route.parse() # lazy init
-                m = (True if route.pattern == r else False) if route.literal else route.pattern.match( r )
-                if not m: continue
+                
+                match = route.match(r, method)
+                if not match: continue
                 
                 found = True
                 
@@ -857,7 +935,6 @@ class Dromeo:
                 handlers = route.handlers[ : ]
                 
                 # make calls
-                captures = route.captures.items( )
                 for h in range(len(handlers)):
                     handler = handlers[ h ]
                     # handler is oneOff and already called
@@ -872,23 +949,7 @@ class Dromeo:
                         'fallback': False,
                         'data': copy.deepcopy(defaults)
                     }
-                    if not route.literal:
-                        for v,g in captures:
-                            groupIndex = g[0]
-                            groupTypecaster = g[1]
-                            if m.group( groupIndex ):
-                                if type and (v in type) and type[ v ]:
-                                    typecaster = type[ v ]
-                                    if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
-                                        typecaster = Dromeo.TYPES[ typecaster ]
-                                    params['data'][ v ] = typecaster( m.group( groupIndex ) ) if callable(typecaster) else m.group( groupIndex )
-                                elif groupTypecaster:
-                                    typecaster = groupTypecaster
-                                    params['data'][ v ] = typecaster( m.group( groupIndex ) ) if callable(typecaster) else m.group( groupIndex )
-                                else:
-                                    params['data'][ v ] = m.group( groupIndex )
-                            elif v not in params['data']: 
-                                params['data'][ v ] = None
+                    route.sub(match, params['data'], type)
                     
                     handler[4] = 1 # handler called
                     handler[0]( params )
@@ -908,7 +969,7 @@ class Dromeo:
             if found: return True
         
         if self._fallback:  
-            self._fallback( {'route': r, 'pattern': None, 'fallback': True, 'data': None} )
+            self._fallback( {'route': r, 'method': method, 'pattern': None, 'fallback': True, 'data': None} )
             return False
         return False
 
