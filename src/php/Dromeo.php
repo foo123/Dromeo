@@ -38,7 +38,7 @@ class DromeoRoute
         $this->literal = false;
         $this->namespace = null;
         $this->tpl = null;
-        $this->name = isset($name) ? $name : null;
+        $this->name = isset($name) ? (string)$name : null;
     }
 
     public function __destruct()
@@ -385,7 +385,7 @@ class Dromeo
         $this->_routes = array( );
         $this->_named_routes = array( );
         $this->_fallback = false;
-        $this->_prefix = $route_prefix ? (string)$route_prefix : '';
+        $this->_prefix = (string)$route_prefix;
     }
 
     public function __destruct( )
@@ -580,7 +580,7 @@ class Dromeo
             $handler = isset($route['handler']) ? $route['handler'] : $handler;
             $route = $route['route'];
             if ( !$route ) return $this;
-            $route = $this->_prefix . $route;
+            $route = (string)$route;
             $r = null;
             foreach($this->_routes as $rt)
             {
@@ -610,7 +610,7 @@ class Dromeo
         }
         elseif ( is_string($route) && strlen($route) )
         {
-            $route = $this->_prefix . $route;
+            $route = (string)$route;
             $r = null;
             foreach($this->_routes as $rt)
             {
@@ -653,64 +653,62 @@ class Dromeo
         return isset($this->_named_routes[$named_route]) ? $this->_named_routes[$named_route]->make( $params, $strict ) : null;
     }
 
-    public function route( $r=null, $method="*", $breakOnFirstMatch=true )
+    public function route( $r, $method="*", $breakOnFirstMatch=true )
     {
-        $method = $method ? strtolower($method) : '*';
-        if ( $r )
+        $r = (string)$r;
+        $method = $method ? strtolower((string)$method) : '*';
+        $breakOnFirstMatch = false !== $breakOnFirstMatch;
+        $routes = array_merge(array(), $this->_routes); // copy, avoid mutation
+        $found = false;
+        foreach ($routes as $route)
         {
-            $breakOnFirstMatch = false !== $breakOnFirstMatch;
-            $routes = array_merge(array(), $this->_routes); // copy, avoid mutation
-            $found = false;
-            foreach ($routes as $route)
+            $match = $route->match($r, $method);
+            if ( !$match  ) continue;
+
+            $found = true;
+
+            // copy handlers avoid mutation during calls
+            // is this shallow or deep copy???
+            // since using objects as array items, it should be shallow
+            $handlers = array_merge(array(), $route->handlers);
+
+            // make calls
+            foreach ( $handlers as &$handler )
             {
-                $match = $route->match($r, $method);
-                if ( !$match  ) continue;
+                // handler is oneOff and already called
+                if ( $handler->oneOff && $handler->called ) continue;
 
-                $found = true;
+                // get params
+                $params = array(
+                    'route'=> $r,
+                    'method'=> $method,
+                    'pattern'=> $route->route,
+                    'fallback'=> false,
+                    'data'=> array_merge_recursive(array(), $handler->defaults)
+                );
+                $route->sub($match, $params['data'], $handler->types);
 
-                // copy handlers avoid mutation during calls
-                // is this shallow or deep copy???
-                // since using objects as array items, it should be shallow
-                $handlers = array_merge(array(), $route->handlers);
-
-                // make calls
-                foreach ( $handlers as &$handler )
-                {
-                    // handler is oneOff and already called
-                    if ( $handler->oneOff && $handler->called ) continue;
-
-                    // get params
-                    $params = array(
-                        'route'=> $r,
-                        'method'=> $method,
-                        'pattern'=> $route->route,
-                        'fallback'=> false,
-                        'data'=> array_merge_recursive(array(), $handler->defaults)
-                    );
-                    $route->sub($match, $params['data'], $handler->types);
-
-                    $handler->called = 1; // handler called
-                    call_user_func( $handler->handler, $params );
-                }
-
-                // remove called oneOffs
-                /*for ($h=count($route->handlers)-1; $h>=0; $h--)
-                {
-                    // handler is oneOff and called once
-                    $handler =& $route->handlers[$h];
-                    if ( $handler->oneOff && $handler->called ) array_splice($route->handlers, $h, 1);
-                }
-                if ( empty($route->handlers) )
-                    self::clearRoute( $this->_routes, $route->route );*/
-
-                if ( $breakOnFirstMatch ) return true;
+                $handler->called = 1; // handler called
+                call_user_func( $handler->handler, $params );
             }
-            if ( $found ) return true;
+
+            // remove called oneOffs
+            /*for ($h=count($route->handlers)-1; $h>=0; $h--)
+            {
+                // handler is oneOff and called once
+                $handler =& $route->handlers[$h];
+                if ( $handler->oneOff && $handler->called ) array_splice($route->handlers, $h, 1);
+            }
+            if ( empty($route->handlers) )
+                self::clearRoute( $this->_routes, $route->route );*/
+
+            if ( $breakOnFirstMatch ) return true;
         }
+        if ( $found ) return true;
+        
         if ( $this->_fallback )
         {
             call_user_func( $this->_fallback, array('route'=>$r,  'method'=> $method, 'pattern'=> null, 'fallback'=> true, 'data'=>null) );
-            return false;
         }
         return false;
     }

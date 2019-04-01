@@ -672,15 +672,15 @@ function Route( delims, patterns, route, method, name, prefix )
     self.__args__ = [ delims, patterns ];
     self.isParsed = false; // lazy init
     self.handlers = [ ];
-    self.route = String(route);
-    self.prefix = String(prefix);
+    self.route = null != route ? String(route) : '';
+    self.prefix = null != prefix ? String(prefix) : '';
     self.method = method;
     self.pattern = null;
     self.captures = null;
     self.literal = false;
     self.namespace = null;
     self.tpl = null;
-    self.name = name || null;
+    self.name = null != name ? String(name) : null;
 }
 Route[PROTO] = {
     constructor: Route,
@@ -1190,67 +1190,64 @@ Dromeo[PROTO] = {
             route, params, defaults, type,
             i, l, lh, h, match, handlers, handler, found;
         ;
-        method = method ? String(method).toLowerCase( ) : '*';
-
-        if ( r )
+        r = null != r ? String(r) : '';
+        method = null != method ? String(method).toLowerCase( ) : '*';
+        breakOnFirstMatch = false !== breakOnFirstMatch;
+        routes = self._routes.slice( ); // copy, avoid mutation
+        found = false;
+        l = routes.length;
+        for (i=0; i<l; i++)
         {
-            breakOnFirstMatch = false !== breakOnFirstMatch;
-            routes = self._routes.slice( ); // copy, avoid mutation
-            found = false;
-            l = routes.length;
-            for (i=0; i<l; i++)
+            route = routes[ i ];
+            match = route.match(r, method);
+            if ( null == match ) continue;
+
+            found = true;
+
+            // copy handlers, avoid mutation during calls
+            handlers = route.handlers.slice( 0 );
+
+            // make calls
+            lh = handlers.length;
+            for (h=0; h<lh; h++)
             {
-                route = routes[ i ];
-                match = route.match(r, method);
-                if ( null == match ) continue;
+                handler = handlers[ h ];
+                // handler is oneOff and already called
+                if ( handler[3] && handler[4] ) continue;
 
-                found = true;
+                defaults = handler[1];
+                type = handler[2];
+                params = {
+                    route: r,
+                    method: method,
+                    pattern: route.route,
+                    fallback: false,
+                    data: extend({}, defaults, true)
+                };
 
-                // copy handlers, avoid mutation during calls
-                handlers = route.handlers.slice( 0 );
+                route.sub(match, params.data, type);
 
-                // make calls
-                lh = handlers.length;
-                for (h=0; h<lh; h++)
-                {
-                    handler = handlers[ h ];
-                    // handler is oneOff and already called
-                    if ( handler[3] && handler[4] ) continue;
-
-                    defaults = handler[1];
-                    type = handler[2];
-                    params = {
-                        route: r,
-                        method: method,
-                        pattern: route.route,
-                        fallback: false,
-                        data: extend({}, defaults, true)
-                    };
-
-                    route.sub(match, params.data, type);
-
-                    handler[4] = 1; // handler called
-                    handler[0]( params );
-                }
-
-                // remove called oneOffs
-                /*for (h=route.handlers.length-1; h>=0; h--)
-                {
-                    // handler is oneOff and already called once
-                    handler = route.handlers[h];
-                    if ( handler[3] && handler[4] ) route.handlers.splice(h, 1);
-                }
-                if ( !route.handlers.length )
-                    clearRoute( self._routes, route.route );*/
-
-                if ( breakOnFirstMatch ) return true;
+                handler[4] = 1; // handler called
+                handler[0]( params );
             }
-            if ( found ) return true;
+
+            // remove called oneOffs
+            /*for (h=route.handlers.length-1; h>=0; h--)
+            {
+                // handler is oneOff and already called once
+                handler = route.handlers[h];
+                if ( handler[3] && handler[4] ) route.handlers.splice(h, 1);
+            }
+            if ( !route.handlers.length )
+                clearRoute( self._routes, route.route );*/
+
+            if ( breakOnFirstMatch ) return true;
         }
+        if ( found ) return true;
+        
         if ( self._fallback )
         {
             self._fallback( {route: r, method: method, pattern: null, fallback: true, data: null} );
-            return false;
         }
         return false;
     }

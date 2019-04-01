@@ -63,7 +63,8 @@ def array_keys(o):
     return []
 
 def array_values(o):
-    if isinstance(o, (list,tuple)): return list(o)
+    if isinstance(o, list): return o
+    if isinstance(o, tuple): return list(o)
     if isinstance(o, dict):
         if is_numeric_array(o):
             # get values in list-order by ascending index
@@ -79,7 +80,7 @@ def array_values(o):
     return []
 
 def is_numeric_array( o ):
-    if isinstance(o,list): return True
+    if isinstance(o,(list,tuple)): return True
     if isinstance(o,dict):
         k = array_keys(o)
         i = 0
@@ -208,15 +209,15 @@ class Route:
         self.__args__ = [ delims, patterns ]
         self.isParsed = False # lazy init
         self.handlers = [ ]
-        self.route = str(route)
-        self.prefix = str(prefix)
+        self.route = str(route) if route is not None else ''
+        self.prefix = str(prefix) if prefix is not None else ''
         self.method = method
         self.pattern = None
         self.captures = None
         self.literal = False
         self.namespace = None
         self.tpl = None
-        self.name = str(name) if name else None
+        self.name = str(name) if name is not None else None
     
     def __del__(self):
         self.dispose()
@@ -732,7 +733,7 @@ class Dromeo:
         self._routes = [ ]
         self._named_routes = { }
         self._fallback = False
-        self._prefix = str(prefix) if prefix else ''
+        self._prefix = str(prefix) if prefix is not None else ''
     
     
     def __del__(self):
@@ -918,59 +919,59 @@ class Dromeo:
     def make(self, named_route, params=dict(), strict=False):
         return self._named_routes[named_route].make(params, strict) if named_route in self._named_routes else None
     
-    def route( self, r=None, method="*", breakOnFirstMatch=True ):
+    def route( self, r, method="*", breakOnFirstMatch=True ):
+        r = str(r) if r is not None else ''
         method = str(method).lower() if method else "*"
-        if r:
-            breakOnFirstMatch = breakOnFirstMatch is not False
-            routes = self._routes[:] # copy, avoid mutation
-            found = False
-            for route in routes:
-                
-                match = route.match(r, method)
-                if not match: continue
-                
-                found = True
-                
-                # copy handlers avoid mutation during calls
-                handlers = route.handlers[ : ]
-                
-                # make calls
-                for h in range(len(handlers)):
-                    handler = handlers[ h ]
-                    # handler is oneOff and already called
-                    if handler[3] and handler[4]: continue
-                    
-                    defaults = handler[1]
-                    type = handler[2]
-                    params = {
-                        'route': r,
-                        'method': method,
-                        'pattern': route.route,
-                        'fallback': False,
-                        'data': copy.deepcopy(defaults)
-                    }
-                    route.sub(match, params['data'], type)
-                    
-                    handler[4] = 1 # handler called
-                    handler[0]( params )
-                
-                # remove called oneOffs
-                #lh = len(route.handlers)-1
-                #while lh >= 0: 
-                #    # handler is oneOff and called once
-                #    handler = route.handlers[lh]
-                #    if handler[3] and handler[4]: del route.handlers[lh : lh+1]
-                #    lh -= 1
-                #if 0 == len(route.handlers):
-                #    clearRoute( self._routes, route.route )
-                
-                if breakOnFirstMatch: return True
+        breakOnFirstMatch = breakOnFirstMatch is not False
+        routes = self._routes[:] # copy, avoid mutation
+        found = False
+        for route in routes:
             
-            if found: return True
+            match = route.match(r, method)
+            if not match: continue
+            
+            found = True
+            
+            # copy handlers avoid mutation during calls
+            handlers = route.handlers[ : ]
+            
+            # make calls
+            for h in range(len(handlers)):
+                handler = handlers[ h ]
+                # handler is oneOff and already called
+                if handler[3] and handler[4]: continue
+                
+                defaults = handler[1]
+                type = handler[2]
+                params = {
+                    'route': r,
+                    'method': method,
+                    'pattern': route.route,
+                    'fallback': False,
+                    'data': copy.deepcopy(defaults)
+                }
+                route.sub(match, params['data'], type)
+                
+                handler[4] = 1 # handler called
+                handler[0]( params )
+            
+            # remove called oneOffs
+            #lh = len(route.handlers)-1
+            #while lh >= 0: 
+            #    # handler is oneOff and called once
+            #    handler = route.handlers[lh]
+            #    if handler[3] and handler[4]: del route.handlers[lh : lh+1]
+            #    lh -= 1
+            #if 0 == len(route.handlers):
+            #    clearRoute( self._routes, route.route )
+            
+            if breakOnFirstMatch: return True
+        
+        if found: return True
         
         if self._fallback:  
             self._fallback( {'route': r, 'method': method, 'pattern': None, 'fallback': True, 'data': None} )
-            return False
+        
         return False
 
     
