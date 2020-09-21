@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Routing Framework for PHP, Python, Node.js / Browser / XPCOM Javascript
-*   @version: 1.1.0
+*   @version: 1.1.1
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -23,7 +23,7 @@ else if ( !(name in root) ) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__Dromeo( undef ) {
 "use strict";
 
-var __version__ = "1.1.0",
+var __version__ = "1.1.1",
 
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -608,11 +608,22 @@ var __version__ = "1.1.0",
         return [ route, new RegExp('^' + pattern + '$'), captures, method, false, tpl ];
     },
 
-    clearRoute = function( routes, named_routes, route ) {
+    to_key = function( route, method ){
+        return method.join(',') + '->' + route;
+    },
+
+    to_method = function( method ){
+        method = method ? (method.map ? method.map(function(x){return x.toLowerCase()}) : [String(method).toLowerCase()]) : ['*'];
+        if ( in_array('*', method) ) method = ['*'];
+        method.sort();
+        return method;
+    },
+
+    clearRoute = function( routes, named_routes, key ) {
         var i, l = routes.length, r;
         for (i=l-1; i>=0; i--)
         {
-            if ( route === routes[ i ].route )
+            if ( key === routes[ i ].key )
             {
                 if ( route.name && HAS.call(named_routes,route.name) )
                     delete named_routes[route.name];
@@ -631,15 +642,15 @@ var __version__ = "1.1.0",
                 defaults = route.defaults || {},
                 types = route.types || null,
                 name = route.name || null,
-                method = route.method ? (route.method.map ? route.method.map(function(x){return x.toLowerCase()}) : [route.method.toLowerCase()]) : ['*'],
-                h, r, i, l;
+                method = to_method(route.method),
+                h, r, i, l, key;
             route = route.route;
-            if ( in_array('*', method) ) method = ['*'];
+            key = to_key(route, method);
 
             r = null;
             for(i=0,l=routes.length; i<l; i++)
             {
-                if ( route === routes[i].route )
+                if ( key === routes[i].key )
                 {
                     r = routes[i];
                     break;
@@ -681,7 +692,9 @@ function Route( delims, patterns, route, method, name, prefix )
     self.namespace = null;
     self.tpl = null;
     self.name = null != name ? String(name) : null;
+    self.key = to_key(self.route, self.method);
 }
+Route.to_key = to_key;
 Route[PROTO] = {
     constructor: Route,
     __args__: null,
@@ -696,6 +709,7 @@ Route[PROTO] = {
     literal: null,
     namespace: null,
     name: null,
+    key: null,
 
     dispose: function( ) {
         var self = this;
@@ -711,6 +725,7 @@ Route[PROTO] = {
         self.literal = null;
         self.namespace = null;
         self.name = null;
+        self.key = null;
         return self;
     },
 
@@ -852,6 +867,7 @@ function type_to_params( v ) { return is_string(v) ? Dromeo.unglue_params(v) : v
 Dromeo.VERSION = __version__;
 Dromeo.HTTP_STATUS = HTTP_STATUS;
 Dromeo.Route = Route;
+Dromeo.to_method = to_method;
 Dromeo.TYPES = {
  'INTEGER'  : type_to_int
 ,'STRING'   : type_to_str
@@ -1095,25 +1111,28 @@ Dromeo[PROTO] = {
         return self;
     },
 
-    off: function( route, handler ) {
+    off: function( route, handler, method ) {
         var self = this,
             routes = self._routes,
             named_routes = self._named_routes,
             prefix = self._prefix,
-            i, r, l;
+            i, r, l, key;
 
         if ( !route ) return self;
+        if ( null == method ) method = '*';
 
         if ( is_obj(route) )
         {
             handler = route.handler || handler;
+            method = route.method || method;
             route = route.route;
             if ( !route ) return self;
             route = String(route);
+            key = to_key(route, to_method(method));
             r = null;
             for(i=0,l=routes.length; i<l; i++)
             {
-                if ( route === routes[i].route )
+                if ( key === routes[i].key )
                 {
                     r = routes[i];
                     break;
@@ -1131,20 +1150,21 @@ Dromeo[PROTO] = {
                         r.handlers.splice( i, 1 );
                 }
                 if ( !r.handlers.length )
-                    clearRoute( routes, named_routes, route );
+                    clearRoute( routes, named_routes, key );
             }
             else
             {
-                clearRoute( routes, named_routes, route );
+                clearRoute( routes, named_routes, key );
             }
         }
         else if ( is_string(route) && route.length )
         {
             route = String(route);
+            key = to_key(route, to_method(method));
             r = null;
             for(i=0,l=routes.length; i<l; i++)
             {
-                if ( route === routes[i].route )
+                if ( key === routes[i].key )
                 {
                     r = routes[i];
                     break;
@@ -1162,11 +1182,11 @@ Dromeo[PROTO] = {
                         r.handlers.splice( i, 1 );
                 }
                 if ( !r.handlers.length )
-                    clearRoute( routes, named_routes, route );
+                    clearRoute( routes, named_routes, key );
             }
             else
             {
-                clearRoute( routes, named_routes, route );
+                clearRoute( routes, named_routes, key );
             }
         }
         return self;
@@ -1239,12 +1259,12 @@ Dromeo[PROTO] = {
                 if ( handler[3] && handler[4] ) route.handlers.splice(h, 1);
             }
             if ( !route.handlers.length )
-                clearRoute( self._routes, route.route );*/
+                clearRoute( self._routes, route.key );*/
 
             if ( breakOnFirstMatch ) return true;
         }
         if ( found ) return true;
-        
+
         if ( self._fallback )
         {
             self._fallback( {route: r, method: method, pattern: null, fallback: true, data: null} );

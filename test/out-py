@@ -1,5 +1,5 @@
 Dromeo Module loaded succesfully
-Dromeo.VERSION =  1.1.0
+Dromeo.VERSION =  1.1.1
 
 
 Route Handler Called
@@ -19,32 +19,9 @@ Params:  {   'const_pattern': 'const_pattern',
     'id': 23,
     'rest': '?preview=prev+iew&foo=bar',
     'user': 'abcd12'}
-Route Handler Called
-Route:  http://abc.org/users/abcd12/23/?preview=preview&foo=bar
-Params:  {   'extra': 'extra',
-    'foo': 'moo',
-    'group': 'users',
-    'id': 23,
-    'multiple_methods': '1',
-    'preview': None,
-    'rest': '/?preview=preview&foo=bar',
-    'user': 'abcd12'}
-Route Handler Called
-Route:  http://abc.org/users/abcd12/23/?preview=preview&foo=bar
-Params:  {   'const_pattern': 'const_pattern',
-    'foo': 'moo',
-    'group': 'users',
-    'id': 23,
-    'rest': '/?preview=preview&foo=bar',
-    'user': 'abcd12'}
-Route Handler Called
-Route:  http://abc.org/users/abcd12/23
-Params:  {   'const_pattern': 'const_pattern',
-    'foo': 'moo',
-    'group': 'users',
-    'id': 23,
-    'rest': None,
-    'user': 'abcd12'}
+Literal Post Handler Called
+Route:  http://literal.abc.org/
+Params:  {'extra': 'extra', 'foo': 'moo', 'literal_route': '1'}
 Literal Route Handler Called
 Route:  http://literal.abc.org/
 Params:  {'extra': 'extra', 'foo': 'moo', 'literal_route': '1'}

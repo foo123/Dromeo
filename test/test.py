@@ -29,6 +29,11 @@ def literalRouteHandler( params ):
     print('Route: ', params['route'])
     print('Params: ', pprint.pformat(params['data'], 4))
 
+def literalPostHandler( params ):
+    print('Literal Post Handler Called')
+    print('Route: ', params['route'])
+    print('Params: ', pprint.pformat(params['data'], 4))
+
 def routeHandler( params ):
     print('Route Handler Called')
     print('Route: ', params['route'])
@@ -61,9 +66,16 @@ dromeo.fallback(
     ).on(
       {
       'route':'http://literal.abc.org/', 
-      # same as using
-      #'method': '*',
+      'method': 'get',
       'handler':literalRouteHandler, 
+      'defaults':{'foo':'moo','extra':'extra', 'literal_route':'1'}
+      #'types':{'id': 'INTEGER'}
+      }
+    ).on(
+      {
+      'route':'http://literal.abc.org/', 
+      'method': 'post',
+      'handler':literalPostHandler, 
       'defaults':{'foo':'moo','extra':'extra', 'literal_route':'1'}
       #'types':{'id': 'INTEGER'}
       }
@@ -97,8 +109,9 @@ dromeo.fallback(
     )
 
 dromeo.route( 'http://abc.org/users/abcd12/23/soo?preview=prev+iew&foo=bar', '*', False )
-dromeo.route( 'http://abc.org/users/abcd12/23/?preview=preview&foo=bar', 'get', False )
-dromeo.route( 'http://abc.org/users/abcd12/23', '*', False )
+#dromeo.route( 'http://abc.org/users/abcd12/23/?preview=preview&foo=bar', 'get', False )
+#dromeo.route( 'http://abc.org/users/abcd12/23', '*', False )
+dromeo.route( 'http://literal.abc.org/', 'post', False )
 dromeo.route( 'http://literal.abc.org/', 'get', False )
 
 
