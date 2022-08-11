@@ -25,15 +25,24 @@ else:
 
 
 def defaultHandler(route, *args):
+    print('Default Handler')
     print(pprint.pformat(route, 4))
 
 
-router = Dromeo()
+router1 = Dromeo()
+router2 = Dromeo()
 
-router.on([
+router1.on([
     {
         'route':'/foo/{:user}/{:id}',
         'name': 'route1',
+        'handler': defaultHandler
+    }
+])
+router2.on([
+    {
+        'route':'/foo{/%ALPHA%:user(1)}',
+        'name': 'route2',
         'handler': defaultHandler
     }
 ])
@@ -41,5 +50,8 @@ router.on([
 print('Dromeo.VERSION = ', Dromeo.VERSION)
 print("\n")
 
-router.route('/FOO/USER/ID'.lower(), '*', True, '/FOO/USER/ID', 'ORIG')
+router1.route('/FOO/USER/ID'.lower(), '*', True, '/FOO/USER/ID', 'ORIG')
+router1.route('/FOO/Foo/ID'.lower(), '*', True, '/FOO/Foo/ID', 'ORIG')
+router2.route('/FOO/USER'.lower(), '*', True, '/FOO/USER', 'ORIG')
+router2.route('/FOO/Foo'.lower(), '*', True, '/FOO/Foo', 'ORIG')
 

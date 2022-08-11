@@ -6,5 +6,33 @@ Default Handler
   method: '*',
   pattern: '/foo/{:user}/{:id}',
   fallback: false,
-  data: { user: 'user', id: 'id', ORIG: { user: 'USER', id: 'ID' } }
+  data: { user: 'user', id: 'id', ORIG: { user: 'USER', id: 'ID' } },
+  route_original: '/FOO/USER/ID'
+}
+Default Handler
+{
+  route: '/foo/foo/id',
+  method: '*',
+  pattern: '/foo/{:user}/{:id}',
+  fallback: false,
+  data: { user: 'foo', id: 'id', ORIG: { user: 'Foo', id: 'ID' } },
+  route_original: '/FOO/Foo/ID'
+}
+Default Handler
+{
+  route: '/foo/user',
+  method: '*',
+  pattern: '/foo{/%ALPHA%:user(1)}',
+  fallback: false,
+  data: { user: 'user', ORIG: { user: 'USER' } },
+  route_original: '/FOO/USER'
+}
+Default Handler
+{
+  route: '/foo/foo',
+  method: '*',
+  pattern: '/foo{/%ALPHA%:user(1)}',
+  fallback: false,
+  data: { user: 'foo', ORIG: { user: 'Foo' } },
+  route_original: '/FOO/Foo'
 }

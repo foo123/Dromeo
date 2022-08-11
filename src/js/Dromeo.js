@@ -563,7 +563,7 @@ function makeRoute(_delims, _patterns, route, method, prefix)
     var parts, part, i, l, isOptional, isCaptured,
         isPattern, pattern, p, m, numGroups, patternTypecaster,
         captures, captureName, capturePattern, captureIndex,
-        tpl
+        tpl, currOffset
     ;
     if (0 > route.indexOf(_delims[0]))
     {
@@ -574,10 +574,15 @@ function makeRoute(_delims, _patterns, route, method, prefix)
     l = parts.length;
     isPattern = false;
     pattern = '';
+    currOffset = 0;
     numGroups = 0;
     captures = {};
     tpl = [];
-    if (prefix && prefix.length)  pattern += esc_regex(prefix);
+    if (prefix && prefix.length)
+    {
+        pattern += esc_regex(prefix);
+        currOffset = prefix.length;
+    }
 
     for (i=0; i<l; ++i)
     {
@@ -634,7 +639,7 @@ function makeRoute(_delims, _patterns, route, method, prefix)
             pattern += capturePattern[0];
             numGroups += capturePattern[1];
             if (isOptional) pattern += '?';
-            if (isCaptured) captures[captureName] = [captureIndex, patternTypecaster];
+            if (isCaptured) captures[captureName] = [captureIndex, patternTypecaster, currOffset];
             if (isCaptured)
                 tpl.push({
                     name        : captureName,
@@ -643,10 +648,12 @@ function makeRoute(_delims, _patterns, route, method, prefix)
                     tpl         : capturePattern[3]
                 });
             isPattern = false;
+            currOffset = 0;
         }
         else
         {
             pattern += esc_regex(part);
+            currOffset += part.length;
             tpl.push(part);
             isPattern = true;
         }
@@ -843,8 +850,10 @@ Route[PROTO] = {
 
     sub: function(match, data, type, originalInput, originalKey) {
         var self = this, v, g, i,
-            groupIndex, groupTypecaster, givenInput, isDifferentInput,
-            matchedValue, matchedOriginalValue, odata = {}, typecaster;
+            groupIndex, groupTypecaster,
+            givenInput, isDifferentInput,
+            matchedValue, matchedOriginalValue,
+            odata = {}, typecaster;
 
         if (!self.isParsed || self.literal) return self;
 
@@ -857,6 +866,7 @@ Route[PROTO] = {
             g = self.captures[v];
             groupIndex = g[0];
             groupTypecaster = g[1];
+            i += g[2]; // offset
             if (match[groupIndex])
             {
                 matchedValue = match[groupIndex];
@@ -1339,7 +1349,7 @@ Dromeo[PROTO] = {
                         fallback: false,
                         data: extend({}, defaults, true)
                     };
-
+                    if (is_string(originalR)) params['route_original'] = originalR;
                     route.sub(match, params.data, type, originalR, originalKey);
 
                     handler[4] = 1; // handler called

@@ -986,6 +986,7 @@ class Dromeo:
                         'fallback': False,
                         'data': copy.deepcopy(defaults)
                     }
+                    if isinstance(originalR, str): params['route_original'] = originalR
                     route.sub(match, params['data'], type, originalR, originalKey)
 
                     handler[4] = 1 # handler called

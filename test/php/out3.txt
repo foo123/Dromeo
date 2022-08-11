@@ -19,4 +19,64 @@ Array
 
         )
 
+    [route_original] => /FOO/USER/ID
+)
+Default Handler
+Array
+(
+    [route] => /foo/foo/id
+    [method] => *
+    [pattern] => /foo/{:user}/{:id}
+    [fallback] => 
+    [data] => Array
+        (
+            [user] => foo
+            [id] => id
+            [ORIG] => Array
+                (
+                    [user] => Foo
+                    [id] => ID
+                )
+
+        )
+
+    [route_original] => /FOO/Foo/ID
+)
+Default Handler
+Array
+(
+    [route] => /foo/user
+    [method] => *
+    [pattern] => /foo{/%ALPHA%:user(1)}
+    [fallback] => 
+    [data] => Array
+        (
+            [user] => user
+            [ORIG] => Array
+                (
+                    [user] => USER
+                )
+
+        )
+
+    [route_original] => /FOO/USER
+)
+Default Handler
+Array
+(
+    [route] => /foo/foo
+    [method] => *
+    [pattern] => /foo{/%ALPHA%:user(1)}
+    [fallback] => 
+    [data] => Array
+        (
+            [user] => foo
+            [ORIG] => Array
+                (
+                    [user] => Foo
+                )
+
+        )
+
+    [route_original] => /FOO/Foo
 )

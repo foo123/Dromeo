@@ -2,8 +2,31 @@ Dromeo Module loaded succesfully
 Dromeo.VERSION =  1.1.2
 
 
+Default Handler
 {   'data': {'ORIG': {'id': 'ID', 'user': 'USER'}, 'id': 'id', 'user': 'user'},
     'fallback': False,
     'method': '*',
     'pattern': '/foo/{:user}/{:id}',
-    'route': '/foo/user/id'}
+    'route': '/foo/user/id',
+    'route_original': '/FOO/USER/ID'}
+Default Handler
+{   'data': {'ORIG': {'id': 'ID', 'user': 'Foo'}, 'id': 'id', 'user': 'foo'},
+    'fallback': False,
+    'method': '*',
+    'pattern': '/foo/{:user}/{:id}',
+    'route': '/foo/foo/id',
+    'route_original': '/FOO/Foo/ID'}
+Default Handler
+{   'data': {'ORIG': {'user': 'USER'}, 'user': 'user'},
+    'fallback': False,
+    'method': '*',
+    'pattern': '/foo{/%ALPHA%:user(1)}',
+    'route': '/foo/user',
+    'route_original': '/FOO/USER'}
+Default Handler
+{   'data': {'ORIG': {'user': 'Foo'}, 'user': 'foo'},
+    'fallback': False,
+    'method': '*',
+    'pattern': '/foo{/%ALPHA%:user(1)}',
+    'route': '/foo/foo',
+    'route_original': '/FOO/Foo'}
