@@ -16,15 +16,15 @@ def import_module(name, path):
     return mod
 
 # import the Dromeo.py engine (as a) module, probably you will want to place this in another dir/package
-Dromeo = import_module('Dromeo', os.path.join(os.path.dirname(__file__), '../src/python/'))
+Dromeo = import_module('Dromeo', os.path.join(os.path.dirname(__file__), '../../src/python/'))
 if not Dromeo:
     print ('Could not load the Dromeo Module')
     sys.exit(1)
-else:    
+else:
     print ('Dromeo Module loaded succesfully')
 
 
-def defaultHandler( *args ):
+def defaultHandler(*args):
     pass
 
 
@@ -34,22 +34,22 @@ router.on([
     {
         'route':'/{:user}/{:id}',
         'name': 'route1',
-        'handler': defaultHandler 
+        'handler': defaultHandler
     },
     {
         'route':'/{:user}{/%INT%:?id(1)}',
         'name': 'route2',
-        'handler': defaultHandler 
+        'handler': defaultHandler
     },
     {
         'route':'/{:user}{/%INT%:?id(1)}{/%ALPHA%:?action(1)}',
         'name': 'route4',
-        'handler': defaultHandler 
+        'handler': defaultHandler
     },
     {
         'route':'/bar/456',
         'name': 'route3',
-        'handler': defaultHandler 
+        'handler': defaultHandler
     }
 ])
 
@@ -60,8 +60,8 @@ def make(route, params=dict(), strict=False):
         out = str(err)
     return out
 
-print( 'Dromeo.VERSION = ', Dromeo.VERSION )
-print( "\n" );
+print('Dromeo.VERSION = ', Dromeo.VERSION)
+print("\n")
 
 print(make('route1', {'user':'foo','id':'123'}))
 print(make('route1', {'user':'foo','id':'123'}, True))

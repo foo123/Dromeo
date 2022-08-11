@@ -1,6 +1,6 @@
 <?php
 
-require(dirname(dirname(__FILE__)).'/src/php/Dromeo.php');
+require(dirname(__FILE__) . '/../../src/php/Dromeo.php');
 
 function echo_($s)
 {
@@ -17,7 +17,7 @@ $router->on(array(
     array(
         'route'=>'/{:user}/{:id}',
         'name'=> 'route1',
-        'handler'=> 'defaultHandler' 
+        'handler'=> 'defaultHandler'
     ),
     array(
         'route'=>'/{:user}{/%INT%:?id(1)}',
@@ -47,8 +47,8 @@ function make($route, $params=array(), $strict=false)
     return $out;
 }
 
-echo( 'Dromeo.VERSION = ' . Dromeo::VERSION . PHP_EOL );
-echo( PHP_EOL );
+echo('Dromeo.VERSION = ' . Dromeo::VERSION . PHP_EOL);
+echo(PHP_EOL);
 
 echo_(make('route1', array('user'=>'foo','id'=>'123')));
 echo_(make('route1', array('user'=>'foo','id'=>'123'), true));

@@ -1,0 +1,22 @@
+Dromeo.VERSION = 1.1.2
+
+Default Handler
+Array
+(
+    [route] => /foo/user/id
+    [method] => *
+    [pattern] => /foo/{:user}/{:id}
+    [fallback] => 
+    [data] => Array
+        (
+            [user] => user
+            [id] => id
+            [ORIG] => Array
+                (
+                    [user] => USER
+                    [id] => ID
+                )
+
+        )
+
+)

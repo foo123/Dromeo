@@ -1,0 +1,9 @@
+Dromeo Module loaded succesfully
+Dromeo.VERSION =  1.1.2
+
+
+{   'data': {'ORIG': {'id': 'ID', 'user': 'USER'}, 'id': 'id', 'user': 'user'},
+    'fallback': False,
+    'method': '*',
+    'pattern': '/foo/{:user}/{:id}',
+    'route': '/foo/user/id'}

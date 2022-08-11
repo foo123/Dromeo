@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 ##
 #   Dromeo
-#   Simple and Flexible Routing Framework for PHP, Python, Node.js / Browser / XPCOM Javascript
-#   @version: 1.1.1
+#   Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
+#   @version: 1.1.2
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -79,7 +79,7 @@ def array_values(o):
             return list(o.values())
     return []
 
-def is_numeric_array( o ):
+def is_numeric_array(o):
     if isinstance(o,(list,tuple)): return True
     if isinstance(o,dict):
         k = array_keys(o)
@@ -205,14 +205,14 @@ class _G:
 
 class Route:
 
-    def to_key( route, method ):
+    def to_key(route, method):
         return ','.join(method) + '->' + route;
 
 
-    def __init__( self, delims, patterns, route, method, name=None, prefix='' ):
-        self.__args__ = [ delims, patterns ]
+    def __init__(self, delims, patterns, route, method, name = None, prefix = ''):
+        self.__args__ = [delims, patterns]
         self.isParsed = False # lazy init
-        self.handlers = [ ]
+        self.handlers = []
         self.route = str(route) if route is not None else ''
         self.prefix = str(prefix) if prefix is not None else ''
         self.method = method
@@ -224,10 +224,10 @@ class Route:
         self.name = str(name) if name is not None else None
         self.key = Route.to_key(self.route, self.method);
 
-    def __del__( self ):
+    def __del__(self):
         self.dispose()
 
-    def dispose( self ):
+    def dispose(self):
         self.__args__ = None
         self.isParsed = None
         self.handlers = None
@@ -243,27 +243,27 @@ class Route:
         self.key = None
         return self
 
-    def parse( self ):
+    def parse(self):
         if self.isParsed: return self
-        r = makeRoute( self.__args__[0], self.__args__[1], self.route, self.method, self.prefix )
-        self.pattern = r[ 1 ]
-        self.captures = r[ 2 ]
-        self.tpl = r[ 5 ]
-        self.literal = r[ 4 ] is True
+        r = makeRoute(self.__args__[0], self.__args__[1], self.route, self.method, self.prefix)
+        self.pattern = r[1]
+        self.captures = r[2]
+        self.tpl = r[5]
+        self.literal = r[4] is True
         self.__args__ = None
         self.isParsed = True
         return self
 
-    def match( self, route, method='*' ):
+    def match(self, route, method = '*'):
         if (method not in self.method) and ('*' != self.method[0]): return None
         if not self.isParsed: self.parse() # lazy init
         route = str(route)
-        return (True if self.pattern == route else None) if self.literal else self.pattern.match( route )
+        return (True if self.pattern == route else None) if self.literal else self.pattern.match(route)
 
-    def make( self, params=dict(), strict=False ):
+    def make(self, params = dict(), strict = False):
         out = ''
         strict = strict is True
-        if not self.isParsed: self.parse( ) # lazy init
+        if not self.isParsed: self.parse() # lazy init
         tpl = self.tpl
         i = 0
         l = len(tpl)
@@ -291,67 +291,81 @@ class Route:
                         j += 1
         return out
 
-    def sub( self, match, data, type=None ):
+    def sub(self, match, data, type = None, originalInput = None, originalKey = None):
         if (not self.isParsed) or self.literal: return self
-        for v,g in self.captures.items( ):
+        odata = {}
+        givenInput = match.group(0)
+        isDifferentInput = isinstance(originalInput, str) and (originalInput != givenInput)
+        for v,g in self.captures.items():
             groupIndex = g[0]
             groupTypecaster = g[1]
-            if match.group( groupIndex ):
-                if type and (v in type) and type[ v ]:
-                    typecaster = type[ v ]
+            if match.group(groupIndex):
+                # if original input is given,
+                # get match from original input (eg with original case)
+                # else what matched
+                matchedValue = match.group(groupIndex)
+                matchedOriginalValue = originalInput[match.start(groupIndex):match.end(groupIndex)] if isDifferentInput else matchedValue
+
+                if type and (v in type) and type[v]:
+                    typecaster = type[v]
                     if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
-                        typecaster = Dromeo.TYPES[ typecaster ]
-                    data[ v ] = typecaster( match.group( groupIndex ) ) if callable(typecaster) else match.group( groupIndex )
+                        typecaster = Dromeo.TYPES[typecaster]
+                    data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
+                    odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
                 elif groupTypecaster:
                     typecaster = groupTypecaster
-                    data[ v ] = typecaster( match.group( groupIndex ) ) if callable(typecaster) else match.group( groupIndex )
+                    data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
+                    odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
                 else:
-                    data[ v ] = match.group( groupIndex )
+                    data[v] = matchedValue
+                    odata[v] = matchedOriginalValue
             elif v not in data:
-                data[ v ] = None
+                data[v] = None
+                odata[v] = None
+        if originalKey: data[str(originalKey)] = odata
         return self
 
 
-def parse_url(s, component=None, mode='php'):
+def parse_url(s, component = None, mode = 'php'):
     # http://www.php2python.com/wiki/function.parse-url/
     global _G
 
-    m = _G.uriParser[ mode ].match( s )
-    uri = { }
+    m = _G.uriParser[mode].match(s)
+    uri = {}
     i = 14
 
     while i > 0:
         i -= 1
-        if m.group( i ):  uri[ _G.uriComponent[ i ] ] = m.group( i )
+        if m.group(i):  uri[_G.uriComponent[i]] = m.group(i)
 
     if 'port' in uri: uri['port'] = int(uri['port'], 10)
 
     if component:
-        component = component.replace('PHP_URL_', '').lower( )
-        return uri[ component ] if component in uri else None
+        component = component.replace('PHP_URL_', '').lower()
+        return uri[component] if component in uri else None
 
     if 'source' in uri: del uri['source']
     return uri
 
-def parse_str( s ):
+def parse_str(s):
     # http://www.php2python.com/wiki/function.parse-str/
     global _G
 
     strArr = s.strip('&').split('&')
-    array = { }
-    possibleLists = [ ]
+    array = {}
+    possibleLists = []
 
     for tmp in strArr:
-        tmp = tmp.split( '=' )
-        key = rawurldecode( tmp[0].strip() )
+        tmp = tmp.split('=')
+        key = rawurldecode(tmp[0].strip())
         if len(tmp) < 2: value = ''
-        else: value = rawurldecode( tmp[1].strip() )
+        else: value = rawurldecode(tmp[1].strip())
 
         j = key.find('\x00')
         if j > -1: key = key[0:j]
 
-        if key and '[' != key[0]:
-            keys = [ ]
+        if key and ('[' != key[0]):
+            keys = []
 
             postLeftBracketPos = 0
             lk = len(key)
@@ -362,12 +376,12 @@ def parse_str( s ):
                 elif ']' == key[j]:
                     if postLeftBracketPos:
                         if 0 == len(keys):
-                            keys.append( key[0:postLeftBracketPos - 1] )
-                        keys.append( key[postLeftBracketPos:j] )
+                            keys.append(key[0:postLeftBracketPos - 1])
+                        keys.append(key[postLeftBracketPos:j])
                         postLeftBracketPos = 0
                         if j < lk-1 and '[' != key[j + 1]: break
 
-            if 0 == len(keys): keys = [ key ]
+            if 0 == len(keys): keys = [key]
 
             for j in range(len(key[0])):
                 chr = keys[0][j]
@@ -378,16 +392,16 @@ def parse_str( s ):
             obj = array
             key = None
             lastObj = obj
-            lastkey = keys[ len(keys)-1 ].strip( "'\"" ).strip( ) if len(keys) else None
+            lastkey = keys[len(keys)-1].strip("'\"").strip() if len(keys) else None
             for j in range(len(keys)):
                 prevkey = key
-                key = keys[ j ].strip( "'\"" )
+                key = keys[j].strip("'\"")
                 prevobj = lastObj
                 lastObj = obj
 
                 if '' != key.strip() or 0 == j:
-                    if key not in obj: obj[ key ] = [ ] if (j+1 == len(keys)-1) and (''==lastkey) else { }
-                    obj = obj[ key ]
+                    if key not in obj: obj[key] = [] if (j+1 == len(keys)-1) and (''==lastkey) else {}
+                    obj = obj[key]
                 else:
                     # To insert new dimension
                     #ct = -1
@@ -404,7 +418,7 @@ def parse_str( s ):
                     ikey = -1
                 if 0 <= ikey:
                     possibleLists.append({'key':prevkey,'obj':prevobj})
-                lastObj[ key ] = value
+                lastObj[key] = value
     i = len(possibleLists)-1
     while i >= 0:
         # safe to pass multiple times same obj, it is possible
@@ -418,7 +432,7 @@ def parse_str( s ):
         i -= 1
     return array
 
-def http_build_query_helper( key, val, arg_separator, PHP_QUERY_RFC3986 ):
+def http_build_query_helper(key, val, arg_separator, PHP_QUERY_RFC3986):
     encode = rawurlencode if PHP_QUERY_RFC3986 else urlencode
 
     if True == val: val = "1"
@@ -429,83 +443,83 @@ def http_build_query_helper( key, val, arg_separator, PHP_QUERY_RFC3986 ):
         key = str(key)
 
         data = None
-        if isinstance(val, dict): data = val.items( )
-        elif isinstance(val, (list, tuple)): data = enumerate( val )
+        if isinstance(val, dict): data = val.items()
+        elif isinstance(val, (list, tuple)): data = enumerate(val)
 
         if data:
-            tmp = [ ]
+            tmp = []
             for k,v in data:
                 if v is not None:
-                    tmp.append( http_build_query_helper(key + "[" + str(k) + "]", v, arg_separator, PHP_QUERY_RFC3986) )
-            return arg_separator.join( tmp )
+                    tmp.append(http_build_query_helper(key + "[" + str(k) + "]", v, arg_separator, PHP_QUERY_RFC3986))
+            return arg_separator.join(tmp)
 
         else:
-            return encode( key ) + "=" + encode( str(val) )
+            return encode(key) + "=" + encode(str(val))
 
     else:
         return ''
 
-def http_build_query( data, arg_separator='&', PHP_QUERY_RFC3986=False ):
+def http_build_query(data, arg_separator = '&', PHP_QUERY_RFC3986 = False):
     tmp = [ ]
-    for key,value in data.items( ):
+    for key,value in data.items():
         query = http_build_query_helper(key, value, arg_separator, PHP_QUERY_RFC3986)
-        if '' != query: tmp.append( query )
+        if '' != query: tmp.append(query)
 
-    return arg_separator.join( tmp )
+    return arg_separator.join(tmp)
 
 
-def length( s ):
+def length(s):
     return len(s) > 0
 
 
-def split( s, d1, d2=None ):
-    if (d1==d2) or not d2:
-        return s.split( d1 )
+def split(s, d1, d2 = None):
+    if (d1==d2) or (not d2):
+        return s.split(d1)
     else:
-        parts = [ ]
-        s = s.split( d1 )
+        parts = []
+        s = s.split(d1)
         for part in s:
-            part = part.split( d2 )
-            parts.append( part[ 0 ] )
-            if len(part) > 1: parts.append( part[ 1 ] )
+            part = part.split(d2)
+            parts.append(part[0])
+            if len(part) > 1: parts.append(part[1])
         return parts
 
 
-def makePattern( delims, patterns, pattern ):
+def makePattern(delims, patterns, pattern):
     global _G
 
     numGroups = 0
-    types = { }
-    pattern = split( pattern, delims[2], delims[3] )
-    p = [ ]
-    tpl = [ ]
+    types = {}
+    pattern = split(pattern, delims[2], delims[3])
+    p = []
+    tpl = []
     tplPattern = None
     isPattern = False
     for i,pt in enumerate(pattern):
         if isPattern:
             if len(pt):
                 if pt in patterns:
-                    p.append( '(' + patterns[ pt ][ 0 ] + ')' )
+                    p.append('(' + patterns[pt][0] + ')')
                     numGroups += 1
                     # typecaster
-                    if patterns[ pt ][ 1 ]: types[str(numGroups)] = patterns[ pt ][ 1 ]
-                    if tplPattern is None: tplPattern = p[ len(p)-1 ]
+                    if patterns[pt][1]: types[str(numGroups)] = patterns[pt][1]
+                    if tplPattern is None: tplPattern = p[len(p)-1]
                 else:
-                    m = _G.patternOr.match( pt )
+                    m = _G.patternOr.match(pt)
                     if m:
-                        p.append( '(' + '|'.join( map( re.escape, filter( length, m.group(1).split('|') ) ) ) + ')' )
+                        p.append('(' + '|'.join( map( re.escape, filter( length, m.group(1).split('|') ) ) ) + ')')
                         numGroups += 1
-                        if tplPattern is None: tplPattern = p[ len(p)-1 ]
+                        if tplPattern is None: tplPattern = p[len(p)-1]
                     elif len(pt):
-                        p.append( '(' + re.escape( pt ) + ')' )
+                        p.append('(' + re.escape( pt ) + ')')
                         numGroups += 1
-                        if tplPattern is None: tplPattern = p[ len(p)-1 ]
-            tpl.append( True )
+                        if tplPattern is None: tplPattern = p[len(p)-1]
+            tpl.append(True)
             isPattern = False
         else:
             if len(pt):
-                p.append( re.escape( pt ) )
-                tpl.append( pt )
+                p.append(re.escape(pt))
+                tpl.append(pt)
             isPattern = True
 
     if 1 == len(p) and 1 == numGroups:
@@ -518,21 +532,21 @@ def makePattern( delims, patterns, pattern ):
         return [pat, numGroups+1, types, tpl, tplPattern if tplPattern else pat]
 
 
-def makeRoute( delims, patterns, route, method=None, prefix=None ):
+def makeRoute(delims, patterns, route, method = None, prefix = None):
     global _G
 
-    if delims[ 0 ] not in route:
+    if delims[0] not in route:
         # literal route
-        return [ route, prefix+route if prefix and len(prefix) else route, {}, method, True, [route] ]
+        return [route, prefix+route if prefix and len(prefix) else route, {}, method, True, [route]]
 
-    parts = split( route, delims[ 0 ], delims[ 1 ] )
+    parts = split(route, delims[0], delims[1])
     isPattern = False
     pattern = ''
     numGroups = 0
-    captures = { }
-    tpl = [ ]
+    captures = {}
+    tpl = []
     if prefix and len(prefix):
-        pattern += re.escape( prefix )
+        pattern += re.escape(prefix)
 
     for part in parts:
 
@@ -542,19 +556,19 @@ def makeRoute( delims, patterns, route, method=None, prefix=None ):
             patternTypecaster = None
 
             # http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
-            p = part.split( delims[ 4 ] )
-            if not len(p[ 0 ]):
+            p = part.split(delims[4])
+            if not len(p[0]):
                 # http://abc.org/{:user}/{:?id}
                 # assume pattern is %PART%
-                p[ 0 ] = delims[2]+'PART'+delims[3]
-            capturePattern = makePattern( delims, patterns, p[ 0 ] )
+                p[0] = delims[2] + 'PART' + delims[3]
+            capturePattern = makePattern(delims, patterns, p[0])
 
             if len(p) > 1:
-                captureName = p[ 1 ].strip( )
+                captureName = p[1].strip()
                 isOptional = (len(captureName)>0 and '?' == captureName[0])
                 if isOptional: captureName = captureName[1:]
 
-                m = _G.group.search( captureName )
+                m = _G.group.search(captureName)
                 if m:
                     captureName = captureName[:-len(m.group(0))]
                     captureIndex = int(m.group(1), 10)
@@ -569,35 +583,35 @@ def makeRoute( delims, patterns, route, method=None, prefix=None ):
 
                 isCaptured = (len(captureName) > 0)
 
-            pattern += capturePattern[ 0 ]
-            numGroups += capturePattern[ 1 ]
+            pattern += capturePattern[0]
+            numGroups += capturePattern[1]
             if isOptional: pattern += '?'
-            if isCaptured: captures[ captureName ] = [captureIndex, patternTypecaster]
+            if isCaptured: captures[captureName] = [captureIndex, patternTypecaster]
             if isCaptured:
                 tpl.append({
                     'name'        : captureName,
                     'optional'    : isOptional,
-                    're'          : re.compile('^' + capturePattern[ 4 ] + '$'),
-                    'tpl'         : capturePattern[ 3 ]
+                    're'          : re.compile('^' + capturePattern[4] + '$'),
+                    'tpl'         : capturePattern[3]
                 });
             isPattern = False
         else:
-            pattern += re.escape( part )
-            tpl.append( part )
+            pattern += re.escape(part)
+            tpl.append(part)
             isPattern = True
 
-    return [ route, re.compile('^' + pattern + '$'), captures, method, False, tpl ]
+    return [route, re.compile('^' + pattern + '$'), captures, method, False, tpl]
 
 
-def to_method( method ):
+def to_method(method):
     method = (list(map(lambda x: str(x).lower(), method)) if isinstance(method,(list,tuple)) else [str(method).lower()]) if method else ['*']
     if '*' in method: method = ['*']
     method = list(sorted(method))
     return method
 
-def addRoute( routes, named_routes, delims, patterns, prefix, route, oneOff=False ):
+def addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff = False):
     if route and isinstance(route, dict) and 'route' in route and len(route['route'])>0 and 'handler' in route and callable(route['handler']):
-        oneOff = (True == oneOff)
+        oneOff = (oneOff is True)
         handler = route['handler']
         defaults = dict(route['defaults']) if 'defaults' in route else {}
         types = dict(route['types']) if ('types' in route) and route['types'] else None
@@ -612,45 +626,45 @@ def addRoute( routes, named_routes, delims, patterns, prefix, route, oneOff=Fals
                 break
 
         if not r:
-            r = Route( delims, patterns, route, method, name, prefix )
+            r = Route(delims, patterns, route, method, name, prefix)
             routes.append(r)
             if r.name and len(r.name): named_routes[r.name] = r
 
-        r.handlers.append( [handler, defaults, types, oneOff, 0] )
+        r.handlers.append([handler, defaults, types, oneOff, 0])
 
 
-def addRoutes( routes, named_routes, delims, patterns, prefix, args, oneOff=False ):
+def addRoutes(routes, named_routes, delims, patterns, prefix, args, oneOff = False):
     for route in args:
         addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff)
 
 
-def clearRoute( routes, named_routes, key ):
+def clearRoute(routes, named_routes, key):
     l = len(routes)-1
     while l >= 0:
-        if key == routes[ l ].key:
-            if routes[ l ].name and (routes[ l ].name in named_routes):
-                del named_routes[routes[ l ].name]
-            routes[ l ].dispose( )
+        if key == routes[l].key:
+            if routes[l].name and (routes[l].name in named_routes):
+                del named_routes[routes[l].name]
+            routes[l].dispose()
             del routes[l : l+1]
         l -= 1
 
-def type_to_int( v ):
+def type_to_int(v):
     try:
         v = int(v, 10)
     except ValueError:
         v = 0
     return 0 if not v else v # take account of nan
 
-def type_to_str( v ):
+def type_to_str(v):
     return v if isinstance(v, str) else str(v)
 
-def type_to_urldecode( v ):
+def type_to_urldecode(v):
     return urldecode(v)
 
-def type_to_array( v ):
+def type_to_array(v):
     return v if isinstance(v, (list,tuple)) else [v]
 
-def type_to_params( v ):
+def type_to_params(v):
     return Dromeo.unglue_params(v) if isinstance(v, str) else v
 
 
@@ -660,7 +674,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
 
-    VERSION = "1.1.1"
+    VERSION = "1.1.2"
     HTTP_STATUS = _G.HTTP_STATUS
 
     Route = Route
@@ -681,70 +695,70 @@ class Dromeo:
     }
 
     # build/glue together a uri component from a params object
-    def glue_params( params ):
+    def glue_params(params):
         component = '';
         # http://php.net/manual/en/function.http-build-query.php (for '+' sign convention)
-        if params:  component += http_build_query( params, '&', True )
+        if params:  component += http_build_query(params, '&', True)
         return component
 
     # unglue/extract params object from uri component
-    def unglue_params( s ):
-        if s: PARAMS = parse_str( s )
-        else: PARAMS = { }
+    def unglue_params(s):
+        if s: PARAMS = parse_str(s)
+        else: PARAMS = {}
         return PARAMS
 
     # parse and extract uri components and optional query/fragment params
-    def parse_components( s, query_p='query_params', fragment_p='fragment_params' ):
-        COMPONENTS = { }
+    def parse_components(s, query_p = 'query_params', fragment_p = 'fragment_params'):
+        COMPONENTS = {}
         if s:
-            COMPONENTS = parse_url( s )
+            COMPONENTS = parse_url(s)
 
             if query_p:
                 if 'query' in COMPONENTS:
-                    COMPONENTS[ query_p ] = Dromeo.unglue_params( COMPONENTS[ 'query' ] )
+                    COMPONENTS[query_p] = Dromeo.unglue_params(COMPONENTS['query'])
                 else:
-                    COMPONENTS[ query_p ] = { }
+                    COMPONENTS[query_p] = {}
 
             if fragment_p:
                 if 'fragment' in COMPONENTS:
-                    COMPONENTS[ fragment_p ] = Dromeo.unglue_params( COMPONENTS[ 'fragment' ] )
+                    COMPONENTS[fragment_p] = Dromeo.unglue_params(COMPONENTS['fragment'])
                 else:
-                    COMPONENTS[ fragment_p ] = { }
+                    COMPONENTS[fragment_p] = {}
 
         return COMPONENTS
 
 
     # build a url from baseUrl plus query/hash params
-    def build_components( baseUrl, query=None, hash=None, q='?', h='#' ):
+    def build_components(baseUrl, query = None, hash = None, q = '?', h = '#'):
         url = '' + baseUrl
-        if query:  url += q + Dromeo.glue_params( query )
-        if hash:  url += h + Dromeo.glue_params( hash )
+        if query:  url += q + Dromeo.glue_params(query)
+        if hash:  url += h + Dromeo.glue_params(hash)
         return url
 
-    def defType( type, caster ):
+    def defType(type, caster):
         if type and caster and callable(caster):
-            Dromeo.TYPES[ type ] = caster
+            Dromeo.TYPES[type] = caster
 
-    def TYPE( type ):
-        if type and (type in Dromeo.TYPES): return Dromeo.TYPES[ type ]
+    def TYPE(type):
+        if type and (type in Dromeo.TYPES): return Dromeo.TYPES[type]
         return None
 
 
-    def __init__( self, prefix='' ):
+    def __init__(self, prefix = ''):
         self._delims = ['{', '}', '%', '%', ':']
-        self._patterns = { }
-        self.definePattern( 'ALPHA',      '[a-zA-Z\\-_]+' )
-        self.definePattern( 'ALNUM',      '[a-zA-Z0-9\\-_]+' )
-        self.definePattern( 'NUMBR',      '[0-9]+' )
-        self.definePattern( 'INT',        '[0-9]+',          'INT' )
-        self.definePattern( 'PART',       '[^\\/?#]+' )
-        self.definePattern( 'VAR',        '[^=?&#\\/]+',     'VAR' )
-        self.definePattern( 'QUERY',      '\\?[^?#]+' )
-        self.definePattern( 'FRAGMENT',   '#[^?#]+' )
-        self.definePattern( 'URLENCODED', '[^\\/?#]+',       'URLENCODED' )
-        self.definePattern( 'ALL',     '.+' )
-        self._routes = [ ]
-        self._named_routes = { }
+        self._patterns = {}
+        self.definePattern('ALPHA',      '[a-zA-Z\\-_]+')
+        self.definePattern('ALNUM',      '[a-zA-Z0-9\\-_]+')
+        self.definePattern('NUMBR',      '[0-9]+')
+        self.definePattern('INT',        '[0-9]+',          'INT')
+        self.definePattern('PART',       '[^\\/?#]+')
+        self.definePattern('VAR',        '[^=?&#\\/]+',     'VAR')
+        self.definePattern('QUERY',      '\\?[^?#]+')
+        self.definePattern('FRAGMENT',   '#[^?#]+')
+        self.definePattern('URLENCODED', '[^\\/?#]+',       'URLENCODED')
+        self.definePattern('ALL',        '.+')
+        self._routes = []
+        self._named_routes = {}
         self._fallback = False
         self._prefix = str(prefix) if prefix is not None else ''
 
@@ -752,24 +766,24 @@ class Dromeo:
     def __del__(self):
         self.dispose()
 
-    def dispose( self ):
+    def dispose(self):
         self._delims = None
         self._patterns = None
         self._fallback = None
         self._prefix = None
         if self._routes:
-            for r in self._routes: r.dispose( )
+            for r in self._routes: r.dispose()
         self._routes = None
         self._named_routes = None
         return self
 
-    def reset( self ):
-        self._routes = [ ]
-        self._named_routes = { }
+    def reset(self):
+        self._routes = []
+        self._named_routes = {}
         self._fallback = False
         return self
 
-    def defineDelimiters( self, delims ):
+    def defineDelimiters(self, delims):
         if delims:
             l = len(delims)
             if l > 0 and delims[0]: self._delims[0] = delims[0]
@@ -780,47 +794,47 @@ class Dromeo:
         return self
 
 
-    def definePattern( self, className, subPattern, typecaster=None ):
+    def definePattern(self, className, subPattern, typecaster = None):
         if typecaster and isinstance(typecaster, str) and typecaster in Dromeo.TYPES:
-            typecaster = Dromeo.TYPES[ typecaster ]
+            typecaster = Dromeo.TYPES[typecaster]
         if not typecaster or not callable(typecaster): typecaster = None
-        self._patterns[ className ] = [subPattern, typecaster]
+        self._patterns[className] = [subPattern, typecaster]
         return self
 
 
-    def dropPattern( self, className ):
+    def dropPattern(self, className):
         if className in self._patterns:
-            del self._patterns[ className ]
+            del self._patterns[className]
         return self
 
-    def defineType( self, type, caster ):
+    def defineType(self, type, caster):
         Dromeo.defType(type, caster)
         return self
 
 
-    #def debug( self ):
+    #def debug(self):
     #    print('Routes: ', pprint.pformat(self._routes, 4))
     #    print('Fallback: ', pprint.pformat(self._fallback, 4))
 
     # build/glue together a uri component from a params object
-    def glue( self, params ):
-        return Dromeo.glue_params( params )
+    def glue(self, params):
+        return Dromeo.glue_params(params)
 
     # unglue/extract params object from uri component
-    def unglue( self, s ):
-        return Dromeo.unglue_params( s )
+    def unglue(self, s):
+        return Dromeo.unglue_params(s)
 
     # parse and extract uri components and optional query/fragment params
-    def parse( self, s, query_p='query_params', fragment_p='fragment_params' ):
-        return Dromeo.parse_components( s, query_p, fragment_p )
+    def parse(self, s, query_p = 'query_params', fragment_p = 'fragment_params'):
+        return Dromeo.parse_components(s, query_p, fragment_p)
 
 
     # build a url from baseUrl plus query/hash params
-    def build( self, baseUrl, query=None, hash=None, q='?', h='#' ):
-        return Dromeo.build_components( baseUrl, query, hash, q, h )
+    def build(self, baseUrl, query = None, hash = None, q = '?', h = '#'):
+        return Dromeo.build_components(baseUrl, query, hash, q, h)
 
 
-    def redirect( self, url, httpHandler, statusCode=302, statusMsg=True ):
+    def redirect(self, url, httpHandler, statusCode = 302, statusMsg = True):
         #global _G
         # redirection based on python HttpServer
         # https://docs.python.org/3/library/http.server.html, https://wiki.python.org/moin/BaseHttpServer
@@ -829,15 +843,15 @@ class Dromeo:
                 if True == statusMsg:
                     if statusCode in Dromeo.HTTP_STATUS: statusMsg = Dromeo.HTTP_STATUS[statusCode]
                     else: statusMsg = ''
-                httpHandler.send_response( statusCode, statusMsg )
+                httpHandler.send_response(statusCode, statusMsg)
             else:
-                httpHandler.send_response( statusCode )
-            httpHandler.send_header( "Location", url )
-            httpHandler.end_headers( )
+                httpHandler.send_response(statusCode)
+            httpHandler.send_header("Location", url)
+            httpHandler.end_headers()
         return self
 
 
-    def on( self, *args ):
+    def on(self, *args):
         args_len = len(args)
 
         if 1 == args_len:
@@ -851,7 +865,7 @@ class Dromeo:
         return self
 
 
-    def one( self, *args ):
+    def one(self, *args):
         args_len = len(args)
 
         if 1 == args_len:
@@ -865,7 +879,7 @@ class Dromeo:
         return self
 
 
-    def off( self, route, handler=None, method='*' ):
+    def off(self, route, handler = None, method = '*'):
         if not route: return self
 
         routes = self._routes
@@ -891,14 +905,14 @@ class Dromeo:
             if handler and callable(handler):
                 l = len(r.handlers)-1
                 while l>=0:
-                    if handler == r.handlers[ l ][0]:
+                    if handler == r.handlers[l][0]:
                         # http://www.php2python.com/wiki/function.array-splice/
-                        del r.handlers[l : l+1]
+                        del r.handlers[l:l+1]
                     l -= 1
                 if not len(r.handlers):
-                    clearRoute( routes, named_routes, key )
+                    clearRoute(routes, named_routes, key)
             else:
-                clearRoute( routes, named_routes, key )
+                clearRoute(routes, named_routes, key)
 
         elif isinstance(route, str) and len(route):
             route = str(route)
@@ -914,79 +928,85 @@ class Dromeo:
             if handler and callable(handler):
                 l = len(r.handlers)-1
                 while l>=0:
-                    if handler == r.handlers[ l ][0]:
+                    if handler == r.handlers[l][0]:
                         # http://www.php2python.com/wiki/function.array-splice/
-                        del r.handlers[l : l+1]
+                        del r.handlers[l:l+1]
                     l -= 1
                 if not len(r.handlers):
-                    clearRoute( routes, named_routes, key )
+                    clearRoute(routes, named_routes, key)
             else:
-                clearRoute( routes, named_routes, key )
+                clearRoute(routes, named_routes, key)
 
         return self
 
 
-    def fallback( self, handler=False ):
-        if False == handler or None == handler or callable(handler):
+    def fallback(self, handler = False):
+        if handler is False or handler is None or callable(handler):
             self._fallback = handler
         return self
 
 
-    def make(self, named_route, params=dict(), strict=False):
+    def make(self, named_route, params = dict(), strict = False):
         return self._named_routes[named_route].make(params, strict) if named_route in self._named_routes else None
 
-    def route( self, r, method="*", breakOnFirstMatch=True ):
-        r = str(r) if r is not None else ''
-        method = str(method).lower() if method else "*"
-        breakOnFirstMatch = breakOnFirstMatch is not False
-        routes = self._routes[:] # copy, avoid mutation
+    def route(self, r, method = "*", breakOnFirstMatch = True, originalR = None, originalKey = None):
+        proceed = True
         found = False
-        for route in routes:
+        r = str(r) if r is not None else ''
+        prefix = self._prefix
+        if prefix and len(prefix):
+            proceed = (prefix == r[0:len(prefix)])
 
-            match = route.match(r, method)
-            if not match: continue
+        if proceed:
+            breakOnFirstMatch = breakOnFirstMatch is not False
+            method = str(method).lower() if method else "*"
+            routes = self._routes[:] # copy, avoid mutation
+            for route in routes:
 
-            found = True
+                match = route.match(r, method)
+                if not match: continue
 
-            # copy handlers avoid mutation during calls
-            handlers = route.handlers[ : ]
+                found = True
 
-            # make calls
-            for h in range(len(handlers)):
-                handler = handlers[ h ]
-                # handler is oneOff and already called
-                if handler[3] and handler[4]: continue
+                # copy handlers avoid mutation during calls
+                handlers = route.handlers[:]
 
-                defaults = handler[1]
-                type = handler[2]
-                params = {
-                    'route': r,
-                    'method': method,
-                    'pattern': route.route,
-                    'fallback': False,
-                    'data': copy.deepcopy(defaults)
-                }
-                route.sub(match, params['data'], type)
+                # make calls
+                for h in range(len(handlers)):
+                    handler = handlers[h]
+                    # handler is oneOff and already called
+                    if handler[3] and handler[4]: continue
 
-                handler[4] = 1 # handler called
-                handler[0]( params )
+                    defaults = handler[1]
+                    type = handler[2]
+                    params = {
+                        'route': r,
+                        'method': method,
+                        'pattern': route.route,
+                        'fallback': False,
+                        'data': copy.deepcopy(defaults)
+                    }
+                    route.sub(match, params['data'], type, originalR, originalKey)
 
-            # remove called oneOffs
-            #lh = len(route.handlers)-1
-            #while lh >= 0:
-            #    # handler is oneOff and called once
-            #    handler = route.handlers[lh]
-            #    if handler[3] and handler[4]: del route.handlers[lh : lh+1]
-            #    lh -= 1
-            #if 0 == len(route.handlers):
-            #    clearRoute( self._routes, route.key )
+                    handler[4] = 1 # handler called
+                    handler[0](params)
 
-            if breakOnFirstMatch: return True
+                # remove called oneOffs
+                #lh = len(route.handlers)-1
+                #while lh >= 0:
+                #    # handler is oneOff and called once
+                #    handler = route.handlers[lh]
+                #    if handler[3] and handler[4]: del route.handlers[lh : lh+1]
+                #    lh -= 1
+                #if 0 == len(route.handlers):
+                #    clearRoute( self._routes, route.key )
 
-        if found: return True
+                if breakOnFirstMatch: return True
+
+            if found: return True
 
         if self._fallback:
-            self._fallback( {'route': r, 'method': method, 'pattern': None, 'fallback': True, 'data': None} )
+            self._fallback({'route': r, 'method': method, 'pattern': None, 'fallback': True, 'data': None})
 
         return False
 

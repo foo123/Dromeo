@@ -1,5 +1,5 @@
 Dromeo Module loaded succesfully
-Dromeo.VERSION =  1.1.1
+Dromeo.VERSION =  1.1.2
 
 
 Route Handler Called

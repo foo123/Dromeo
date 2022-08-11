@@ -1,10 +1,14 @@
 Dromeo
 ======
 
-A simple and flexible pattern routing framework for PHP, Python, Node.js / Browser / XPCOM Javascript
+A Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
 
 
 ![Dromeo](/dromeo.jpg)
+
+
+Version: **1.1.2**
+
 
 [Etymology of *"dromos"* (path)](https://en.wiktionary.org/wiki/%CE%B4%CF%81%CF%8C%CE%BC%CE%BF%CF%82#Ancient_Greek)
 [Etymology pf *"path"*](https://en.wiktionary.org/wiki/path)
@@ -91,7 +95,7 @@ var router = new Dromeo( route_prefix='' );
 router.defineDelimiters( ['{', '}', '%', '%', ':'] );
 
 // define a (new) sub-pattern identified with className
-// sub-patterns are used in route-patterns, 
+// sub-patterns are used in route-patterns,
 // e.g "http://abc.org/{%ALNUM%:user}", "ALNUM" is an alpha-numeric sub-pattern, i.e "[a-zA-Z0-9\\-_]+"
 // default sub-patterns:
 // ALPHA =>   "[a-zA-Z\\-_]+"            alphabetic only
@@ -151,14 +155,14 @@ router.[on|one]( routePattern, function(params){/*..*/} );
 // set handler(s) for multiple routePattern(s) (oneOff if "one" used)
 
 // using array of objects
-router.[on|one]([ 
+router.[on|one]([
     routeObj1,
     routeObj2
     /* etc .. */
 ]);
 
 // using variable arguments
-router.[on|one]( 
+router.[on|one](
     routeObj1,
     routeObj2
     /* etc .. */
@@ -183,10 +187,10 @@ var url = router.build( baseUrl, query=null, hash=null );
 // build/glue together a uri component from a params object (using RFC3986)
 var component = router.glue( params );
 
-// match and route a given url 
-// (with optional method, only routes which match the method will be used), 
+// match and route a given url
+// (with optional method, only routes which match the method will be used),
 // returns true if matched any routePattern else false
-var matched = router.route( url, method="*", breakOnFirstMatch=true );
+var matched = router.route( url, method="*", breakOnFirstMatch=true, originalUrl=null, originalKey=null );
 
 ```
 
@@ -196,4 +200,5 @@ var matched = router.route( url, method="*", breakOnFirstMatch=true );
 * add support for extra passed defaults [DONE]
 * add support for (optional) type-casting of matched parameters [DONE]
 * add support for making string (URI) from route pattern with given parameters [DONE]
+* add support for extracting original matches if originalInput (if passed), eg with original case, is different than givenInput [DONE]
 * add support for [RFC 6570 URI Template specification](http://tools.ietf.org/html/rfc6570) (TODO?)

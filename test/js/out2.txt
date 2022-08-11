@@ -1,4 +1,4 @@
-Dromeo.VERSION = 1.1.0
+Dromeo.VERSION = 1.1.2
 
 /foo/123
 /foo/123
