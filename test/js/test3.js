@@ -21,7 +21,7 @@ router1.on([
 ]);
 router2.on([
     {
-        route:'/foo{/%ALPHA%:user(1)}',
+        route:'/foo{/%ALPHA%-%ALPHA%:user(2)}',
         name: 'route2',
         handler: defaultHandler
     }
@@ -32,5 +32,5 @@ echo();
 
 router1.route('/FOO/USER/ID'.toLowerCase(), '*', true, '/FOO/USER/ID', 'ORIG');
 router1.route('/FOO/Foo/ID'.toLowerCase(), '*', true, '/FOO/Foo/ID', 'ORIG');
-router2.route('/FOO/USER'.toLowerCase(), '*', true, '/FOO/USER', 'ORIG');
-router2.route('/FOO/Foo'.toLowerCase(), '*', true, '/FOO/Foo', 'ORIG');
+router2.route('/FOO/USER-User'.toLowerCase(), '*', true, '/FOO/USER-User', 'ORIG');
+router2.route('/FOO/Foo-fOO'.toLowerCase(), '*', true, '/FOO/Foo-fOO', 'ORIG');

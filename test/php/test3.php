@@ -20,7 +20,7 @@ $router1->on(array(
 ));
 $router2->on(array(
     array(
-        'route'=>'/foo{/%ALPHA%:user(1)}',
+        'route'=>'/foo{/%ALPHA%-%ALPHA%:user(2)}',
         'name'=> 'route2',
         'handler'=> 'defaultHandler'
     )
@@ -31,5 +31,5 @@ echo(PHP_EOL);
 
 $router1->route(strtolower('/FOO/USER/ID'), '*', true, '/FOO/USER/ID', 'ORIG');
 $router1->route(strtolower('/FOO/Foo/ID'), '*', true, '/FOO/Foo/ID', 'ORIG');
-$router2->route(strtolower('/FOO/USER'), '*', true, '/FOO/USER', 'ORIG');
-$router2->route(strtolower('/FOO/Foo'), '*', true, '/FOO/Foo', 'ORIG');
+$router2->route(strtolower('/FOO/USER-User'), '*', true, '/FOO/USER-User', 'ORIG');
+$router2->route(strtolower('/FOO/Foo-fOO'), '*', true, '/FOO/Foo-fOO', 'ORIG');

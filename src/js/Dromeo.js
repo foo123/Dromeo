@@ -495,13 +495,35 @@ function split(s, d1, d2)
         return parts;
     }
 }
+function offset(i)
+{
+    return function(m) {
+        return i;
+    };
+}
+function matched(i)
+{
+    return function(m) {
+        return m[i] ? m[i].length : 0;
+    };
+}
+function index(offsets)
+{
+    return function(m) {
+        return offsets.reduce(function(i, offset) {
+            return i + offset(m);
+        }, 0);
+    };
+}
 function makePattern(_delims, _patterns, pattern)
 {
-    var i, l, isPattern, p, m, numGroups = 0, types = {}, tpl, tplPattern, pat;
+    var i, l, isPattern, p, m, numGroups = 0, offsets,
+        types = {}, tpl, tplPattern, pat;
 
     pattern = split(pattern, _delims[2], _delims[3]);
     p = [];
     tpl = [];
+    offsets = [];
     tplPattern = null;
     l = pattern.length;
     isPattern = false;
@@ -518,18 +540,21 @@ function makePattern(_delims, _patterns, pattern)
                     // typecaster
                     if (_patterns[pattern[i]][1]) types[numGroups] = _patterns[pattern[i]][1];
                     if (null == tplPattern) tplPattern = p[p.length-1];
+                    offsets.push([numGroups]);
                 }
                 else if ((m = pattern[i].match(_patternOr)))
                 {
                     p.push('(' + m[1].split('|').filter(length).map(esc_regex).join('|') + ')');
                     ++numGroups;
                     if (null == tplPattern) tplPattern = p[p.length-1];
+                    offsets.push([numGroups]);
                 }
                 else if (pattern[i].length)
                 {
                     p.push('(' + esc_regex(pattern[i]) + ')');
                     ++numGroups;
                     if (null == tplPattern) tplPattern = p[p.length-1];
+                    offsets.push([numGroups]);
                 }
             }
             tpl.push(true);
@@ -541,6 +566,7 @@ function makePattern(_delims, _patterns, pattern)
             {
                 p.push(esc_regex(pattern[i]));
                 tpl.push(pattern[i]);
+                offsets.push(pattern[i].length);
             }
             isPattern = true;
         }
@@ -549,13 +575,13 @@ function makePattern(_delims, _patterns, pattern)
     {
         types[0] = types[1] ? types[1] : null;
         pat = p.join('');
-        return [pat, numGroups, types, tpl, tplPattern ? tplPattern : pat];
+        return [pat, numGroups, types, tpl, tplPattern ? tplPattern : pat, offsets];
     }
     else
     {
         types[0] = null;
         pat = '(' + p.join('') + ')';
-        return [pat, numGroups+1, types, tpl, tplPattern ? tplPattern : pat];
+        return [pat, numGroups+1, types, tpl, tplPattern ? tplPattern : pat, offsets];
     }
 }
 function makeRoute(_delims, _patterns, route, method, prefix)
@@ -563,7 +589,7 @@ function makeRoute(_delims, _patterns, route, method, prefix)
     var parts, part, i, l, isOptional, isCaptured,
         isPattern, pattern, p, m, numGroups, patternTypecaster,
         captures, captureName, capturePattern, captureIndex,
-        tpl, currOffset
+        tpl, currOffset, offsets, offsetCapture, done
     ;
     if (0 > route.indexOf(_delims[0]))
     {
@@ -575,6 +601,7 @@ function makeRoute(_delims, _patterns, route, method, prefix)
     isPattern = false;
     pattern = '';
     currOffset = 0;
+    offsets = [];
     numGroups = 0;
     captures = {};
     tpl = [];
@@ -592,6 +619,7 @@ function makeRoute(_delims, _patterns, route, method, prefix)
             isOptional = false;
             isCaptured = false;
             patternTypecaster = null;
+            offsetCapture = [];
 
             // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
             p = part.split(_delims[4]);
@@ -618,6 +646,21 @@ function makeRoute(_delims, _patterns, route, method, prefix)
                             : null;
                     if (captureIndex >= 0 && captureIndex < capturePattern[1])
                     {
+                        done = false;
+                        offsetCapture = capturePattern[5].reduce(function(offsetCapture, o) {
+                            if (is_array(o))
+                            {
+                                if (o[0] >= captureIndex)
+                                {
+                                    done = true;
+                                }
+                            }
+                            if (!done)
+                            {
+                                offsetCapture.push(is_array(o) ? matched(o[0]+numGroups+1) : offset(o));
+                            }
+                            return offsetCapture;
+                        }, []);
                         captureIndex += numGroups + 1;
                     }
                     else
@@ -637,9 +680,8 @@ function makeRoute(_delims, _patterns, route, method, prefix)
             }
 
             pattern += capturePattern[0];
-            numGroups += capturePattern[1];
             if (isOptional) pattern += '?';
-            if (isCaptured) captures[captureName] = [captureIndex, patternTypecaster, currOffset];
+            if (isCaptured) captures[captureName] = [captureIndex, patternTypecaster, index(offsets.concat(offsetCapture))];
             if (isCaptured)
                 tpl.push({
                     name        : captureName,
@@ -647,14 +689,17 @@ function makeRoute(_delims, _patterns, route, method, prefix)
                     re          : new RegExp('^' + capturePattern[4] + '$'),
                     tpl         : capturePattern[3]
                 });
-            isPattern = false;
             currOffset = 0;
+            offsets.push(matched(numGroups + 1));
+            numGroups += capturePattern[1];
+            isPattern = false;
         }
         else
         {
             pattern += esc_regex(part);
             currOffset += part.length;
             tpl.push(part);
+            offsets.push(offset(currOffset));
             isPattern = true;
         }
     }
@@ -850,7 +895,7 @@ Route[PROTO] = {
 
     sub: function(match, data, type, originalInput, originalKey) {
         var self = this, v, g, i,
-            groupIndex, groupTypecaster,
+            groupIndex, groupTypecaster, groupMatchIndex,
             givenInput, isDifferentInput,
             matchedValue, matchedOriginalValue,
             odata = {}, typecaster;
@@ -859,14 +904,13 @@ Route[PROTO] = {
 
         givenInput = match[0];
         isDifferentInput = is_string(originalInput) && (originalInput !== givenInput);
-        i = 0;
         for (v in self.captures)
         {
             if (!HAS.call(self.captures, v)) continue;
             g = self.captures[v];
             groupIndex = g[0];
             groupTypecaster = g[1];
-            i += g[2]; // offset
+            groupMatchIndex = g[2];
             if (match[groupIndex])
             {
                 matchedValue = match[groupIndex];
@@ -874,9 +918,8 @@ Route[PROTO] = {
                 {
                     // if original input is given,
                     // find index and get match from original input (eg with original case)
-                    i = match.input.indexOf(matchedValue, i);
+                    i = groupMatchIndex(match); // match index
                     matchedOriginalValue = originalInput.slice(i, i+matchedValue.length);
-                    i += matchedValue.length;
                 }
                 else
                 {

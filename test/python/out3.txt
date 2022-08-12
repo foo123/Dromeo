@@ -17,16 +17,16 @@ Default Handler
     'route': '/foo/foo/id',
     'route_original': '/FOO/Foo/ID'}
 Default Handler
-{   'data': {'ORIG': {'user': 'USER'}, 'user': 'user'},
+{   'data': {'ORIG': {'user': 'User'}, 'user': 'user'},
     'fallback': False,
     'method': '*',
-    'pattern': '/foo{/%ALPHA%:user(1)}',
-    'route': '/foo/user',
-    'route_original': '/FOO/USER'}
+    'pattern': '/foo{/%ALPHA%-%ALPHA%:user(2)}',
+    'route': '/foo/user-user',
+    'route_original': '/FOO/USER-User'}
 Default Handler
-{   'data': {'ORIG': {'user': 'Foo'}, 'user': 'foo'},
+{   'data': {'ORIG': {'user': 'fOO'}, 'user': 'foo'},
     'fallback': False,
     'method': '*',
-    'pattern': '/foo{/%ALPHA%:user(1)}',
-    'route': '/foo/foo',
-    'route_original': '/FOO/Foo'}
+    'pattern': '/foo{/%ALPHA%-%ALPHA%:user(2)}',
+    'route': '/foo/foo-foo',
+    'route_original': '/FOO/Foo-fOO'}

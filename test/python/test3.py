@@ -41,7 +41,7 @@ router1.on([
 ])
 router2.on([
     {
-        'route':'/foo{/%ALPHA%:user(1)}',
+        'route':'/foo{/%ALPHA%-%ALPHA%:user(2)}',
         'name': 'route2',
         'handler': defaultHandler
     }
@@ -52,6 +52,6 @@ print("\n")
 
 router1.route('/FOO/USER/ID'.lower(), '*', True, '/FOO/USER/ID', 'ORIG')
 router1.route('/FOO/Foo/ID'.lower(), '*', True, '/FOO/Foo/ID', 'ORIG')
-router2.route('/FOO/USER'.lower(), '*', True, '/FOO/USER', 'ORIG')
-router2.route('/FOO/Foo'.lower(), '*', True, '/FOO/Foo', 'ORIG')
+router2.route('/FOO/USER-User'.lower(), '*', True, '/FOO/USER-User', 'ORIG')
+router2.route('/FOO/Foo-fOO'.lower(), '*', True, '/FOO/Foo-fOO', 'ORIG')
 

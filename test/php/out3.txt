@@ -45,38 +45,38 @@ Array
 Default Handler
 Array
 (
-    [route] => /foo/user
+    [route] => /foo/user-user
     [method] => *
-    [pattern] => /foo{/%ALPHA%:user(1)}
+    [pattern] => /foo{/%ALPHA%-%ALPHA%:user(2)}
     [fallback] => 
     [data] => Array
         (
             [user] => user
             [ORIG] => Array
                 (
-                    [user] => USER
+                    [user] => User
                 )
 
         )
 
-    [route_original] => /FOO/USER
+    [route_original] => /FOO/USER-User
 )
 Default Handler
 Array
 (
-    [route] => /foo/foo
+    [route] => /foo/foo-foo
     [method] => *
-    [pattern] => /foo{/%ALPHA%:user(1)}
+    [pattern] => /foo{/%ALPHA%-%ALPHA%:user(2)}
     [fallback] => 
     [data] => Array
         (
             [user] => foo
             [ORIG] => Array
                 (
-                    [user] => Foo
+                    [user] => fOO
                 )
 
         )
 
-    [route_original] => /FOO/Foo
+    [route_original] => /FOO/Foo-fOO
 )
