@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
-#   @version: 1.1.2
+#   @version: 1.2.0
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -293,9 +293,11 @@ class Route:
 
     def sub(self, match, data, type = None, originalInput = None, originalKey = None):
         if (not self.isParsed) or self.literal: return self
-        odata = {}
+
         givenInput = match.group(0)
         isDifferentInput = isinstance(originalInput, str) and (originalInput != givenInput)
+        hasOriginal = isinstance(originalKey, str)
+        odata = {} if hasOriginal else None
         for v,g in self.captures.items():
             groupIndex = g[0]
             groupTypecaster = g[1]
@@ -311,18 +313,20 @@ class Route:
                     if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
                         typecaster = Dromeo.TYPES[typecaster]
                     data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
-                    odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
+                    if hasOriginal: odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
                 elif groupTypecaster:
                     typecaster = groupTypecaster
                     data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
-                    odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
+                    if hasOriginal: odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
                 else:
                     data[v] = matchedValue
-                    odata[v] = matchedOriginalValue
+                    if hasOriginal: odata[v] = matchedOriginalValue
             elif v not in data:
                 data[v] = None
-                odata[v] = None
-        if originalKey: data[str(originalKey)] = odata
+                if hasOriginal: odata[v] = None
+            elif hasOriginal:
+                odata[v] = data[v]
+        if hasOriginal: data[str(originalKey)] = odata
         return self
 
 
@@ -573,7 +577,7 @@ def makeRoute(delims, patterns, route, method = None, prefix = None):
                     captureName = captureName[:-len(m.group(0))]
                     captureIndex = int(m.group(1), 10)
                     patternTypecaster = capturePattern[2][str(captureIndex)] if str(captureIndex) in capturePattern[2] else None
-                    if captureIndex >= 0 and captureIndex < capturePattern[1]:
+                    if captureIndex > 0 and captureIndex < capturePattern[1]:
                         captureIndex += numGroups + 1
                     else:
                         captureIndex = numGroups + 1
@@ -610,7 +614,7 @@ def to_method(method):
     return method
 
 def addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff = False):
-    if route and isinstance(route, dict) and 'route' in route and len(route['route'])>0 and 'handler' in route and callable(route['handler']):
+    if route and isinstance(route, dict) and ('route' in route) and isinstance(route['route'], str) and ('handler' in route) and callable(route['handler']):
         oneOff = (oneOff is True)
         handler = route['handler']
         defaults = dict(route['defaults']) if 'defaults' in route else {}
@@ -630,7 +634,13 @@ def addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff = Fal
             routes.append(r)
             if r.name and len(r.name): named_routes[r.name] = r
 
-        r.handlers.append([handler, defaults, types, oneOff, 0])
+        r.handlers.append([
+            handler,
+            defaults,
+            types,
+            oneOff,
+            0
+        ])
 
 
 def addRoutes(routes, named_routes, delims, patterns, prefix, args, oneOff = False):
@@ -642,10 +652,11 @@ def clearRoute(routes, named_routes, key):
     l = len(routes)-1
     while l >= 0:
         if key == routes[l].key:
-            if routes[l].name and (routes[l].name in named_routes):
-                del named_routes[routes[l].name]
-            routes[l].dispose()
-            del routes[l : l+1]
+            route = routes[l]
+            del routes[l:l+1]
+            if route.name and (route.name in named_routes):
+                del named_routes[route.name]
+            route.dispose()
         l -= 1
 
 def type_to_int(v):
@@ -674,7 +685,7 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
 
-    VERSION = "1.1.2"
+    VERSION = "1.2.0"
     HTTP_STATUS = _G.HTTP_STATUS
 
     Route = Route
@@ -744,7 +755,7 @@ class Dromeo:
         return None
 
 
-    def __init__(self, prefix = ''):
+    def __init__(self, route_prefix = '', top = None):
         self._delims = ['{', '}', '%', '%', ':']
         self._patterns = {}
         self.definePattern('ALPHA',      '[a-zA-Z\\-_]+')
@@ -760,13 +771,16 @@ class Dromeo:
         self._routes = []
         self._named_routes = {}
         self._fallback = False
-        self._prefix = str(prefix) if prefix is not None else ''
+        self._top = top if isinstance(top, Dromeo) else self
+        self.key = str(route_prefix) if route_prefix is not None else ''
+        self._prefix = self._top.key + self.key if self != self._top else self.key
 
 
     def __del__(self):
         self.dispose()
 
     def dispose(self):
+        self._top = None
         self._delims = None
         self._patterns = None
         self._fallback = None
@@ -776,6 +790,20 @@ class Dromeo:
         self._routes = None
         self._named_routes = None
         return self
+
+    def top(self):
+        return self._top
+
+    def isTop(self):
+        return (self._top is None) or (self == self._top)
+
+    def clone(self, prefix = '', top = None):
+        cloned = Dromeo(prefix, top)
+        cloned.defineDelimiters(self._delims)
+        for className in self._patterns:
+            args = self._patterns[className]
+            cloned.definePattern(className, args[0], args[1] if 1 < len(args) else None)
+        return cloned
 
     def reset(self):
         self._routes = []
@@ -851,13 +879,27 @@ class Dromeo:
         return self
 
 
+    def onGroup(self, groupRoute, handler):
+        groupRoute = str(groupRoute)
+        if len(groupRoute) and callable(handler):
+            groupRouter = self.clone(groupRoute, self)
+            self._routes.append(groupRouter)
+            handler(groupRouter)
+        return self
+
     def on(self, *args):
         args_len = len(args)
 
         if 1 == args_len:
             routes = args[0] if isinstance(args[0], (list, tuple)) else [args[0]]
         elif 2 == args_len and isinstance(args[0], str) and callable(args[1]):
-            routes = [{'route': args[0], 'handler': args[1], 'method': '*', 'defaults': {}, 'types': None}]
+            routes = [{
+                'route': args[0],
+                'handler': args[1],
+                'method': '*',
+                'defaults': {},
+                'types': None
+            }]
         else:
             routes = args
 
@@ -871,7 +913,13 @@ class Dromeo:
         if 1 == args_len:
             routes = args[0] if isinstance(args[0], (list, tuple)) else [args[0]]
         elif 2 == args_len and isinstance(args[0], str) and callable(args[1]):
-            routes = [{'route': args[0], 'handler': args[1], 'method': '*', 'defaults': {}, 'types': None}]
+            routes = [{
+                'route': args[0],
+                'handler': args[1],
+                'method': '*',
+                'defaults': {},
+                'types': None
+            }]
         else:
             routes = args
 
@@ -918,24 +966,33 @@ class Dromeo:
             route = str(route)
             key = Route.to_key(route, to_method(method))
             r = None
-            for rt in routes:
-                if key == rt.key:
-                    r = rt
-                    break
+            for i,rt in enumerate(routes):
+                if isinstance(rt, Dromeo):
+                    if route == rt.key:
+                        r = rt
+                        break
+                else:
+                    if key == rt.key:
+                        r = rt
+                        break
 
             if not r: return self
 
-            if handler and callable(handler):
-                l = len(r.handlers)-1
-                while l>=0:
-                    if handler == r.handlers[l][0]:
-                        # http://www.php2python.com/wiki/function.array-splice/
-                        del r.handlers[l:l+1]
-                    l -= 1
-                if not len(r.handlers):
-                    clearRoute(routes, named_routes, key)
+            if isinstance(r, Dromeo):
+                del routes[i:i+1]
+                r.dispose()
             else:
-                clearRoute(routes, named_routes, key)
+                if handler and callable(handler):
+                    l = len(r.handlers)-1
+                    while l>=0:
+                        if handler == r.handlers[l][0]:
+                            # http://www.php2python.com/wiki/function.array-splice/
+                            del r.handlers[l:l+1]
+                        l -= 1
+                    if not len(r.handlers):
+                        clearRoute(routes, named_routes, key)
+                else:
+                    clearRoute(routes, named_routes, key)
 
         return self
 
@@ -950,6 +1007,7 @@ class Dromeo:
         return self._named_routes[named_route].make(params, strict) if named_route in self._named_routes else None
 
     def route(self, r, method = "*", breakOnFirstMatch = True, originalR = None, originalKey = None):
+        if (not self.isTop()) and (not len(self._routes)): return False
         proceed = True
         found = False
         r = str(r) if r is not None else ''
@@ -963,51 +1021,63 @@ class Dromeo:
             routes = self._routes[:] # copy, avoid mutation
             for route in routes:
 
-                match = route.match(r, method)
-                if not match: continue
+                if isinstance(route, Dromeo):
+                    # group router
+                    match = route.route(r, method, breakOnFirstMatch, originalR, originalKey)
+                    if not match: continue
+                    found = True
+                else:
+                    # simple route
+                    match = route.match(r, method)
+                    if not match: continue
+                    found = True
 
-                found = True
+                    # copy handlers avoid mutation during calls
+                    handlers = route.handlers[:]
 
-                # copy handlers avoid mutation during calls
-                handlers = route.handlers[:]
+                    # make calls
+                    to_remove = []
+                    for h in range(len(handlers)):
+                        handler = handlers[h]
+                        # handler is oneOff and already called
+                        if handler[3] and handler[4]:
+                            to_remove.insert(0, h)
+                            continue
 
-                # make calls
-                for h in range(len(handlers)):
-                    handler = handlers[h]
-                    # handler is oneOff and already called
-                    if handler[3] and handler[4]: continue
+                        defaults = handler[1]
+                        type = handler[2]
+                        params = {
+                            'route': r,
+                            'method': method,
+                            'pattern': route.route,
+                            'fallback': False,
+                            'data': copy.deepcopy(defaults)
+                        }
+                        if isinstance(originalR, str): params['route_original'] = originalR
+                        route.sub(match, params['data'], type, originalR, originalKey)
 
-                    defaults = handler[1]
-                    type = handler[2]
-                    params = {
-                        'route': r,
-                        'method': method,
-                        'pattern': route.route,
-                        'fallback': False,
-                        'data': copy.deepcopy(defaults)
-                    }
-                    if isinstance(originalR, str): params['route_original'] = originalR
-                    route.sub(match, params['data'], type, originalR, originalKey)
+                        handler[4] = 1 # handler called
+                        if handler[3]: to_remove.insert(0, h)
+                        handler[0](params)
 
-                    handler[4] = 1 # handler called
-                    handler[0](params)
-
-                # remove called oneOffs
-                #lh = len(route.handlers)-1
-                #while lh >= 0:
-                #    # handler is oneOff and called once
-                #    handler = route.handlers[lh]
-                #    if handler[3] and handler[4]: del route.handlers[lh : lh+1]
-                #    lh -= 1
-                #if 0 == len(route.handlers):
-                #    clearRoute( self._routes, route.key )
+                    # remove called oneOffs
+                    for h in to_remove:
+                        del route.handlers[h:h+1]
+                    if not len(route.handlers):
+                        clearRoute(self._routes, self._named_routes, route.key)
 
                 if breakOnFirstMatch: return True
 
             if found: return True
 
-        if self._fallback:
-            self._fallback({'route': r, 'method': method, 'pattern': None, 'fallback': True, 'data': None})
+        if self._fallback and self.isTop():
+            self._fallback({
+                'route': r,
+                'method': method,
+                'pattern': None,
+                'fallback': True,
+                'data': None
+            })
 
         return False
 

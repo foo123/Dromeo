@@ -7,7 +7,7 @@ A Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
 ![Dromeo](/dromeo.jpg)
 
 
-Version: **1.1.2**
+Version: **1.2.0 in progress**
 
 
 [Etymology of *"dromos"* (path)](https://en.wiktionary.org/wiki/%CE%B4%CF%81%CF%8C%CE%BC%CE%BF%CF%82#Ancient_Greek)

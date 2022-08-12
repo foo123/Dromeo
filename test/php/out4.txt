@@ -1,0 +1,38 @@
+Dromeo.VERSION = 1.2.0
+
+Default Handler
+Array
+(
+    [route] => /foo/koo
+    [method] => *
+    [pattern] => /koo
+    [fallback] => 
+    [data] => Array
+        (
+        )
+
+)
+Default Handler
+Array
+(
+    [route] => /foo/moo
+    [method] => *
+    [pattern] => 
+    [fallback] => 
+    [data] => Array
+        (
+        )
+
+)
+Default Handler
+Array
+(
+    [route] => /foo/moo/soo
+    [method] => *
+    [pattern] => /soo
+    [fallback] => 
+    [data] => Array
+        (
+        )
+
+)

@@ -1,0 +1,22 @@
+Dromeo Module loaded succesfully
+Dromeo.VERSION =  1.2.0
+
+
+Default Handler
+{   'data': {},
+    'fallback': False,
+    'method': '*',
+    'pattern': '/koo',
+    'route': '/foo/koo'}
+Default Handler
+{   'data': {},
+    'fallback': False,
+    'method': '*',
+    'pattern': '',
+    'route': '/foo/moo'}
+Default Handler
+{   'data': {},
+    'fallback': False,
+    'method': '*',
+    'pattern': '/soo',
+    'route': '/foo/moo/soo'}

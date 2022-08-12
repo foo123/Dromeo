@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
-*   @version: 1.1.2
+*   @version: 1.2.0
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -23,7 +23,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__Dromeo(undef) {
 "use strict";
 
-var __version__ = "1.1.2",
+var __version__ = "1.2.0",
 
     // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
     HTTP_STATUS = {
@@ -644,7 +644,7 @@ function makeRoute(_delims, _patterns, route, method, prefix)
                     patternTypecaster = HAS.call(capturePattern[2], captureIndex)
                             ? capturePattern[2][captureIndex]
                             : null;
-                    if (captureIndex >= 0 && captureIndex < capturePattern[1])
+                    if (captureIndex > 0 && captureIndex < capturePattern[1])
                     {
                         done = false;
                         offsetCapture = capturePattern[5].reduce(function(offsetCapture, o) {
@@ -718,22 +718,23 @@ function to_method(method)
 }
 function clearRoute(routes, named_routes, key)
 {
-    var i, l = routes.length, r;
+    var i, l = routes.length, route;
     for (i=l-1; i>=0; --i)
     {
         if (key === routes[i].key)
         {
+            route = routes[i];
+            routes.splice(i, 1);
             if (route.name && HAS.call(named_routes, route.name))
                 delete named_routes[route.name];
-            routes[i].dispose();
-            routes.splice(i, 1);
+            route.dispose();
         }
     }
 }
 function addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff)
 {
     if (
-        route && is_string(route.route) && route.route.length &&
+        route && is_string(route.route) /*&& route.route.length*/ &&
         route.handler && is_callable(route.handler)
     )
     {
@@ -762,7 +763,13 @@ function addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff)
             routes.push(r);
             if (r.name && r.name.length) named_routes[r.name] = r;
         }
-        r.handlers.push([handler, defaults, types, oneOff, 0]);
+        r.handlers.push([
+            handler,
+            defaults,
+            types,
+            oneOff,
+            0
+        ]);
     }
 }
 function addRoutes(routes, named_routes, delims, patterns, prefix, args, oneOff)
@@ -896,14 +903,15 @@ Route[PROTO] = {
     sub: function(match, data, type, originalInput, originalKey) {
         var self = this, v, g, i,
             groupIndex, groupTypecaster, groupMatchIndex,
-            givenInput, isDifferentInput,
-            matchedValue, matchedOriginalValue,
-            odata = {}, typecaster;
+            givenInput, isDifferentInput, hasOriginal, odata,
+            matchedValue, matchedOriginalValue, typecaster;
 
         if (!self.isParsed || self.literal) return self;
 
         givenInput = match[0];
         isDifferentInput = is_string(originalInput) && (originalInput !== givenInput);
+        hasOriginal = is_string(originalKey);
+        odata = hasOriginal ? {} : null;
         for (v in self.captures)
         {
             if (!HAS.call(self.captures, v)) continue;
@@ -933,36 +941,40 @@ Route[PROTO] = {
                     if (is_string(typecaster) && HAS.call(Dromeo.TYPES, typecaster))
                         typecaster = Dromeo.TYPES[typecaster];
                     data[v] = is_callable(typecaster) ? typecaster(matchedValue) : matchedValue;
-                    odata[v] = is_callable(typecaster) ? typecaster(matchedOriginalValue) : matchedOriginalValue;
+                    if (hasOriginal) odata[v] = is_callable(typecaster) ? typecaster(matchedOriginalValue) : matchedOriginalValue;
                 }
                 else if (groupTypecaster)
                 {
                     typecaster = groupTypecaster;
                     data[v] = is_callable(typecaster) ? typecaster(matchedValue) : matchedValue;
-                    odata[v] = is_callable(typecaster) ? typecaster(matchedOriginalValue) : matchedOriginalValue;
+                    if (hasOriginal) odata[v] = is_callable(typecaster) ? typecaster(matchedOriginalValue) : matchedOriginalValue;
                 }
                 else
                 {
                     data[v] = matchedValue;
-                    odata[v] = matchedOriginalValue;
+                    if (hasOriginal) odata[v] = matchedOriginalValue;
                 }
             }
             else if (!HAS.call(data, v))
             {
                 data[v] = null;
-                odata[v] = null;
+                if (hasOriginal) odata[v] = null;
+            }
+            else if (hasOriginal)
+            {
+                odata[v] = data[v];
             }
         }
-        if (originalKey) data[String(originalKey)] = odata;
+        if (hasOriginal) data[String(originalKey)] = odata;
         return self;
     }
 };
 
-function Dromeo(route_prefix)
+function Dromeo(route_prefix, top)
 {
     var self = this;
     // constructor factory method
-    if (!(self instanceof Dromeo)) return new Dromeo(route_prefix);
+    if (!(self instanceof Dromeo)) return new Dromeo(route_prefix, top);
     self._delims = ['{', '}', '%', '%', ':'];
     self._patterns = {},
     self.definePattern('ALPHA',      '[a-zA-Z\\-_]+');
@@ -978,7 +990,9 @@ function Dromeo(route_prefix)
     self._routes = [];
     self._named_routes = {};
     self._fallback = false;
-    self._prefix = null != route_prefix ? String(route_prefix) : '';
+    self._top = top instanceof Dromeo ? top : self;
+    self.key = null != route_prefix ? String(route_prefix) : '';
+    self._prefix = self !== self._top ? self._top.key + self.key : self.key;
 };
 
 
@@ -1086,9 +1100,12 @@ Dromeo[PROTO] = {
     _named_routes: null,
     _fallback: false,
     _prefix: '',
+    _top: null,
+    key: '',
 
     dispose: function() {
         var self = this, i, l;
+        self._top = null;
         self._delims = null;
         self._patterns = null;
         self._fallback = null;
@@ -1103,6 +1120,26 @@ Dromeo[PROTO] = {
         self._routes = null;
         self._named_routes = null;
         return self;
+    },
+
+    top: function() {
+        return this._top;
+    },
+
+    isTop: function() {
+        return (null == this._top) || (this === this._top);
+    },
+
+    clone: function(prefix, top) {
+        var self = this, cloned = new Dromeo(prefix, top), className, args;
+        cloned.defineDelimiters(self._delims);
+        for (className in self._patterns)
+        {
+            if (!HAS.call(self._patterns, className)) continue;
+            args = self._patterns[className];
+            cloned.definePattern(className, args[0], 1 < args.length ? args[1] : null);
+        }
+        return cloned;
     },
 
     reset: function() {
@@ -1210,6 +1247,18 @@ Dromeo[PROTO] = {
         return this;
     },
 
+    onGroup: function(groupRoute, handler) {
+        var self = this, groupRouter;
+        groupRoute = String(groupRoute);
+        if (groupRoute.length && is_callable(handler))
+        {
+            groupRouter = self.clone(groupRoute, self);
+            self._routes.push(groupRouter);
+            handler(groupRouter);
+        }
+        return self;
+    },
+
     on: function(/* var args here .. */) {
         var self = this, args = arguments,
             args_len = args.length, routes
@@ -1221,7 +1270,13 @@ Dromeo[PROTO] = {
         }
         else if (2 === args_len && is_string(args[0]) && is_callable(args[1]))
         {
-            routes = [{route: args[0], handler: args[1], method: '*', defaults: {}, types: null}];
+            routes = [{
+                route: args[0],
+                handler: args[1],
+                method: '*',
+                defaults: {},
+                types: null
+            }];
         }
         else
         {
@@ -1242,7 +1297,13 @@ Dromeo[PROTO] = {
         }
         else if (2 === args_len && is_string(args[0]) && is_callable(args[1]))
         {
-            routes = [{route: args[0], handler: args[1], method: '*', defaults: {}, types: null}];
+            routes = [{
+                route: args[0],
+                handler: args[1],
+                method: '*',
+                defaults: {},
+                types: null
+            }];
         }
         else
         {
@@ -1305,29 +1366,48 @@ Dromeo[PROTO] = {
             r = null;
             for (i=0,l=routes.length; i<l; ++i)
             {
-                if (key === routes[i].key)
+                if (routes[i] instanceof Dromeo)
                 {
-                    r = routes[i];
-                    break;
+                    if (route === routes[i].key)
+                    {
+                        r = routes[i];
+                        break;
+                    }
+                }
+                else
+                {
+                    if (key === routes[i].key)
+                    {
+                        r = routes[i];
+                        break;
+                    }
                 }
             }
 
             if (!r) return self;
 
-            if (handler && is_callable(handler))
+            if (r instanceof Dromeo)
             {
-                l = r.handlers.length;
-                for (i=l-1; i>=0; --i)
-                {
-                    if (handler === r.handlers[i][0])
-                        r.handlers.splice(i, 1);
-                }
-                if (!r.handlers.length)
-                    clearRoute(routes, named_routes, key);
+                routes.splice(i, 1);
+                r.dispose();
             }
             else
             {
-                clearRoute(routes, named_routes, key);
+                if (handler && is_callable(handler))
+                {
+                    l = r.handlers.length;
+                    for (i=l-1; i>=0; --i)
+                    {
+                        if (handler === r.handlers[i][0])
+                            r.handlers.splice(i, 1);
+                    }
+                    if (!r.handlers.length)
+                        clearRoute(routes, named_routes, key);
+                }
+                else
+                {
+                    clearRoute(routes, named_routes, key);
+                }
             }
         }
         return self;
@@ -1348,9 +1428,10 @@ Dromeo[PROTO] = {
 
     route: function(r, method, breakOnFirstMatch, originalR, originalKey) {
         var self = this, proceed, prefix = self._prefix, routes,
-            route, params, defaults, type,
+            route, params, defaults, type, to_remove,
             i, l, lh, h, match, handlers, handler, found;
         ;
+        if (!self.isTop() && !self._routes.length) return false;
         proceed = true;
         found = false;
         r = null != r ? String(r) : '';
@@ -1367,56 +1448,77 @@ Dromeo[PROTO] = {
             for (i=0; i<l; ++i)
             {
                 route = routes[i];
-                match = route.match(r, method);
-                if (null == match) continue;
-
-                found = true;
-
-                // copy handlers, avoid mutation during calls
-                handlers = route.handlers.slice();
-
-                // make calls
-                lh = handlers.length;
-                for (h=0; h<lh; ++h)
+                if (route instanceof Dromeo)
                 {
-                    handler = handlers[h];
-                    // handler is oneOff and already called
-                    if (handler[3] && handler[4]) continue;
-
-                    defaults = handler[1];
-                    type = handler[2];
-                    params = {
-                        route: r,
-                        method: method,
-                        pattern: route.route,
-                        fallback: false,
-                        data: extend({}, defaults, true)
-                    };
-                    if (is_string(originalR)) params['route_original'] = originalR;
-                    route.sub(match, params.data, type, originalR, originalKey);
-
-                    handler[4] = 1; // handler called
-                    handler[0](params);
+                    // group router
+                    match = route.route(r, method, breakOnFirstMatch, originalR, originalKey);
+                    if (!match) continue;
+                    found = true;
                 }
-
-                // remove called oneOffs
-                /*for (h=route.handlers.length-1; h>=0; h--)
+                else
                 {
-                    // handler is oneOff and already called once
-                    handler = route.handlers[h];
-                    if ( handler[3] && handler[4] ) route.handlers.splice(h, 1);
-                }
-                if ( !route.handlers.length )
-                    clearRoute( self._routes, route.key );*/
+                    // simple route
+                    match = route.match(r, method);
+                    if (null == match) continue;
+                    found = true;
 
+                    // copy handlers, avoid mutation during calls
+                    handlers = route.handlers.slice();
+
+                    // make calls
+                    to_remove = [];
+                    lh = handlers.length;
+                    for (h=0; h<lh; ++h)
+                    {
+                        handler = handlers[h];
+                        // handler is oneOff and already called
+                        if (handler[3] && handler[4])
+                        {
+                            to_remove.unshift(h);
+                            continue;
+                        }
+
+                        defaults = handler[1];
+                        type = handler[2];
+                        params = {
+                            route: r,
+                            method: method,
+                            pattern: route.route,
+                            fallback: false,
+                            data: extend({}, defaults, true)
+                        };
+                        if (is_string(originalR)) params['route_original'] = originalR;
+                        route.sub(match, params.data, type, originalR, originalKey);
+
+                        handler[4] = 1; // handler called
+                        if (handler[3]) to_remove.unshift(h);
+                        handler[0](params);
+                    }
+
+                    // remove called oneOffs
+                    for (h=0,lh=to_remove.length; h<lh; ++h)
+                    {
+                        route.handlers.splice(to_remove[h], 1);
+                    }
+                    if (!route.handlers.length)
+                    {
+                        clearRoute(self._routes, self._named_routes, route.key);
+                    }
+                }
                 if (breakOnFirstMatch) return true;
             }
             if (found) return true;
         }
 
-        if (self._fallback)
+        if (self._fallback && self.isTop())
         {
-            self._fallback({route: r, method: method, pattern: null, fallback: true, data: null});
+            self._fallback({
+                route: r,
+                method: method,
+                pattern: null,
+                fallback: true,
+                data: null
+            });
         }
         return false;
     }
