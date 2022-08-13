@@ -6,17 +6,17 @@ Default Handler
 {   'data': {},
     'fallback': False,
     'method': '*',
-    'pattern': '/koo',
+    'pattern': '/foo/koo',
     'route': '/foo/koo'}
 Default Handler
 {   'data': {},
     'fallback': False,
     'method': '*',
-    'pattern': '',
+    'pattern': '/foo/moo',
     'route': '/foo/moo'}
 Default Handler
 {   'data': {},
     'fallback': False,
     'method': '*',
-    'pattern': '/soo',
+    'pattern': '/foo/moo/soo',
     'route': '/foo/moo/soo'}

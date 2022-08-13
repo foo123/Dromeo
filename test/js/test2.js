@@ -32,7 +32,21 @@ router.on([
         name: 'route3',
         handler: defaultHandler
     }
-]);
+])
+.onGroup('/foo', function(router) {
+    router.onGroup('/bar', function(router) {
+        router.on({
+            'route':'/{:user}',
+            'name': 'route5',
+            'handler': defaultHandler
+        });
+    })
+    .on({
+        'route':'/{:user}',
+        'name': 'route6',
+        'handler': defaultHandler
+    });
+});
 
 function make(route, params, strict)
 {
@@ -58,3 +72,5 @@ echo(make('route3', {user:'foo',id:'123'}));
 echo(make('route4', {user:'foo'}));
 echo(make('route4', {user:'foo',id:'123',action:'test'}));
 echo(make('route4', {user:'foo',action:'test'}, true));
+echo(make('route5', {user:'user'}));
+echo(make('route6', {user:'user'}));

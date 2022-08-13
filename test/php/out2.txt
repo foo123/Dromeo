@@ -10,3 +10,5 @@ Dromeo: Route "route1" (Pattern: "/{:user}/{:id}") missing parameter "id"!
 /foo
 /foo/123/test
 /foo/test
+/foo/bar/user
+/foo/user

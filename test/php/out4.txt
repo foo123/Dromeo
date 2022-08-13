@@ -5,7 +5,7 @@ Array
 (
     [route] => /foo/koo
     [method] => *
-    [pattern] => /koo
+    [pattern] => /foo/koo
     [fallback] => 
     [data] => Array
         (
@@ -17,7 +17,7 @@ Array
 (
     [route] => /foo/moo
     [method] => *
-    [pattern] => 
+    [pattern] => /foo/moo
     [fallback] => 
     [data] => Array
         (
@@ -29,7 +29,7 @@ Array
 (
     [route] => /foo/moo/soo
     [method] => *
-    [pattern] => /soo
+    [pattern] => /foo/moo/soo
     [fallback] => 
     [data] => Array
         (

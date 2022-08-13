@@ -4,7 +4,7 @@ Default Handler
 {
   route: '/foo/koo',
   method: '*',
-  pattern: '/koo',
+  pattern: '/foo/koo',
   fallback: false,
   data: {}
 }
@@ -12,7 +12,7 @@ Default Handler
 {
   route: '/foo/moo',
   method: '*',
-  pattern: '',
+  pattern: '/foo/moo',
   fallback: false,
   data: {}
 }
@@ -20,7 +20,7 @@ Default Handler
 {
   route: '/foo/moo/soo',
   method: '*',
-  pattern: '/soo',
+  pattern: '/foo/moo/soo',
   fallback: false,
   data: {}
 }

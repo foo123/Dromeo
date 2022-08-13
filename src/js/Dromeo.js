@@ -716,22 +716,7 @@ function to_method(method)
     method.sort();
     return method;
 }
-function clearRoute(routes, named_routes, key)
-{
-    var i, l = routes.length, route;
-    for (i=l-1; i>=0; --i)
-    {
-        if (key === routes[i].key)
-        {
-            route = routes[i];
-            routes.splice(i, 1);
-            if (route.name && HAS.call(named_routes, route.name))
-                delete named_routes[route.name];
-            route.dispose();
-        }
-    }
-}
-function addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff)
+function insertRoute(self, route, oneOff)
 {
     if (
         route && is_string(route.route) /*&& route.route.length*/ &&
@@ -745,23 +730,23 @@ function addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff)
             name = route.name || null,
             method = to_method(route.method),
             h, r, i, l, key;
-        route = route.route;
+        route = self.key + route.route;
         key = to_key(route, method);
 
         r = null;
-        for (i=0,l=routes.length; i<l; ++i)
+        for (i=0,l=self._routes.length; i<l; ++i)
         {
-            if (key === routes[i].key)
+            if (key === self._routes[i].key)
             {
-                r = routes[i];
+                r = self._routes[i];
                 break;
             }
         }
         if (!r)
         {
-            r = new Route(delims, patterns, route, method, name, prefix);
-            routes.push(r);
-            if (r.name && r.name.length) named_routes[r.name] = r;
+            r = new Route(self._delims, self._patterns, route, method, name, self._prefix);
+            self._routes.push(r);
+            self._addNamedRoute(r);
         }
         r.handlers.push([
             handler,
@@ -772,14 +757,18 @@ function addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff)
         ]);
     }
 }
-function addRoutes(routes, named_routes, delims, patterns, prefix, args, oneOff)
+function clearRoute(self, key)
 {
-    var route, i;
-    oneOff = !!oneOff;
-    for (i=0; i<args.length; ++i)
+    var i, l = self._routes.length, route;
+    for (i=l-1; i>=0; --i)
     {
-        route = args[i];
-        addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff);
+        if (key === self._routes[i].key)
+        {
+            route = self._routes[i];
+            self._routes.splice(i, 1);
+            self._delNamedRoute(route);
+            route.dispose();
+        }
     }
 }
 
@@ -970,11 +959,11 @@ Route[PROTO] = {
     }
 };
 
-function Dromeo(route_prefix, top)
+function Dromeo(prefix, group, top)
 {
     var self = this;
     // constructor factory method
-    if (!(self instanceof Dromeo)) return new Dromeo(route_prefix, top);
+    if (!(self instanceof Dromeo)) return new Dromeo(prefix, group, top);
     self._delims = ['{', '}', '%', '%', ':'];
     self._patterns = {},
     self.definePattern('ALPHA',      '[a-zA-Z\\-_]+');
@@ -991,8 +980,8 @@ function Dromeo(route_prefix, top)
     self._named_routes = {};
     self._fallback = false;
     self._top = top instanceof Dromeo ? top : self;
-    self.key = null != route_prefix ? String(route_prefix) : '';
-    self._prefix = self !== self._top ? self._top.key + self.key : self.key;
+    self.key = self === self._top ? '' : self._top.key + String(group);
+    self._prefix = null == prefix ? '' : String(prefix);
 };
 
 
@@ -1130,8 +1119,8 @@ Dromeo[PROTO] = {
         return (null == this._top) || (this === this._top);
     },
 
-    clone: function(prefix, top) {
-        var self = this, cloned = new Dromeo(prefix, top), className, args;
+    clone: function(group) {
+        var self = this, cloned = new Dromeo(self._prefix, group, self), className, args;
         cloned.defineDelimiters(self._delims);
         for (className in self._patterns)
         {
@@ -1252,7 +1241,7 @@ Dromeo[PROTO] = {
         groupRoute = String(groupRoute);
         if (groupRoute.length && is_callable(handler))
         {
-            groupRouter = self.clone(groupRoute, self);
+            groupRouter = self.clone(groupRoute);
             self._routes.push(groupRouter);
             handler(groupRouter);
         }
@@ -1282,7 +1271,10 @@ Dromeo[PROTO] = {
         {
             routes = args;
         }
-        addRoutes(self._routes, self._named_routes, self._delims, self._patterns, self._prefix, routes);
+        for (var i=0; i<routes.length; ++i)
+        {
+            insertRoute(self, routes[i], false);
+        }
         return self;
     },
 
@@ -1309,15 +1301,16 @@ Dromeo[PROTO] = {
         {
             routes = args;
         }
-        addRoutes(self._routes, self._named_routes, self._delims, self._patterns, self._prefix, routes, true);
+        for (var i=0; i<routes.length; ++i)
+        {
+            insertRoute(self, routes[i], true);
+        }
         return self;
     },
 
     off: function(route, handler, method) {
         var self = this,
             routes = self._routes,
-            named_routes = self._named_routes,
-            prefix = self._prefix,
             i, r, l, key;
 
         if (!route) return self;
@@ -1334,10 +1327,17 @@ Dromeo[PROTO] = {
             r = null;
             for (i=0,l=routes.length; i<l; ++i)
             {
-                if (key === routes[i].key)
+                if (routes[i] instanceof Dromeo)
                 {
-                    r = routes[i];
-                    break;
+                    routes[i].off(route, handler, method);
+                }
+                else
+                {
+                    if (key === routes[i].key)
+                    {
+                        r = routes[i];
+                        break;
+                    }
                 }
             }
 
@@ -1352,11 +1352,11 @@ Dromeo[PROTO] = {
                         r.handlers.splice(i, 1);
                 }
                 if (!r.handlers.length)
-                    clearRoute(routes, named_routes, key);
+                    clearRoute(self, key);
             }
             else
             {
-                clearRoute(routes, named_routes, key);
+                clearRoute(self, key);
             }
         }
         else if (is_string(route) && route.length)
@@ -1372,6 +1372,10 @@ Dromeo[PROTO] = {
                     {
                         r = routes[i];
                         break;
+                    }
+                    else
+                    {
+                        routes[i].off(route, handler, method);
                     }
                 }
                 else
@@ -1402,11 +1406,11 @@ Dromeo[PROTO] = {
                             r.handlers.splice(i, 1);
                     }
                     if (!r.handlers.length)
-                        clearRoute(routes, named_routes, key);
+                        clearRoute(self, key);
                 }
                 else
                 {
-                    clearRoute(routes, named_routes, key);
+                    clearRoute(self, key);
                 }
             }
         }
@@ -1427,7 +1431,7 @@ Dromeo[PROTO] = {
     },
 
     route: function(r, method, breakOnFirstMatch, originalR, originalKey) {
-        var self = this, proceed, prefix = self._prefix, routes,
+        var self = this, proceed, prefix, routes,
             route, params, defaults, type, to_remove,
             i, l, lh, h, match, handlers, handler, found;
         ;
@@ -1435,7 +1439,8 @@ Dromeo[PROTO] = {
         proceed = true;
         found = false;
         r = null != r ? String(r) : '';
-        if (prefix && prefix.length)
+        prefix = self._prefix + self.key;
+        if (prefix.length)
         {
             proceed = (prefix === r.slice(0, prefix.length));
         }
@@ -1502,7 +1507,7 @@ Dromeo[PROTO] = {
                     }
                     if (!route.handlers.length)
                     {
-                        clearRoute(self._routes, self._named_routes, route.key);
+                        clearRoute(self, route.key);
                     }
                 }
                 if (breakOnFirstMatch) return true;
@@ -1521,6 +1526,38 @@ Dromeo[PROTO] = {
             });
         }
         return false;
+    },
+
+    _addNamedRoute: function(route) {
+        var self = this;
+        if (self.isTop())
+        {
+            if ((route instanceof Dromeo.Route) && route.name && route.name.length)
+            {
+                self._named_routes[route.name] = route;
+            }
+        }
+        else
+        {
+            self.top()._addNamedRoute(route);
+        }
+        return self;
+    },
+
+    _delNamedRoute: function(route) {
+        var self = this;
+        if (self.isTop())
+        {
+            if ((route instanceof Dromeo.Route) && route.name && HAS.call(self._named_routes, route.name))
+            {
+                delete self._named_routes[route.name];
+            }
+        }
+        else
+        {
+            self.top()._delNamedRoute(route);
+        }
+        return self;
     }
 };
 

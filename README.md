@@ -7,7 +7,7 @@ A Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
 ![Dromeo](/dromeo.jpg)
 
 
-Version: **1.2.0 in progress**
+Version: **1.2.0**
 
 
 [Etymology of *"dromos"* (path)](https://en.wiktionary.org/wiki/%CE%B4%CF%81%CF%8C%CE%BC%CE%BF%CF%82#Ancient_Greek)
@@ -89,10 +89,10 @@ see `/test` folder
 
 // optional route_prefix to be used in case all routes have a common prefix
 // so can define routes using only the part that differs (easier/shorter code)
-var router = new Dromeo( route_prefix='' );
+var router = new Dromeo(prefix='');
 
 // set/define delimiters used in route-patterns, see examples
-router.defineDelimiters( ['{', '}', '%', '%', ':'] );
+router.defineDelimiters(['{', '}', '%', '%', ':']);
 
 // define a (new) sub-pattern identified with className
 // sub-patterns are used in route-patterns,
@@ -106,22 +106,22 @@ router.defineDelimiters( ['{', '}', '%', '%', ':'] );
 // FRAGMENT =>"#[^?#]+"                  hash/fragment part with leading '#'
 // PART  =>   "[^\\/?#]+"                arbitrary path part (between /../)
 // ALL   =>   ".+"                       arbitrary sequence
-router.definePattern( className, subPattern [,typecaster=null] );
+router.definePattern(className, subPattern [, typecaster = null]);
 
 // unset/remove the sub-pattern "clasName"
-router.dropPattern( className );
+router.dropPattern(className);
 
 // define a custom type, to be used as (optional) typecaster for matching parts
-router.defineType( type, typecaster );
+router.defineType(type, typecaster);
 
 // reset/remove routes and fallback handler
-router.reset( );
+router.reset();
 
 // create a URI from named_route pattern with given parameter values
 // named routes are created by adding a name property when defining a route
 // NOTE: will throw error if parameter is missing and is required (not optional) in the route pattern
 // if strict is set to true will also try to match the parameter value based on route pattern type, eg numeric/alphanumeric etc.. and will throw error if pattern test failed
-router.make(named_route[, params=Object()[, strict=false]]);
+router.make(named_route [, params = Object()[, strict = false]]);
 
 // example
 router.on({
@@ -133,10 +133,10 @@ console.log(router.make('my_route', {user:'foo',id:'123'}));
 // prints "/foo/123"
 
 // set/unset fallback handler
-router.fallback( [handlerFunc | false | null] );
+router.fallback([handlerFunc | false | null]);
 
 // set a handler for routePattern, with optional defaults object (oneOff if "one" used)
-router.[on|one]( routeObj | routeObjs | routePattern, handler );
+router.[on|one](routeObj | routeObjs | routePattern, handler);
 // route object configuration
 //
 //{
@@ -150,7 +150,7 @@ router.[on|one]( routeObj | routeObjs | routePattern, handler );
 //
 
 // this also works:
-router.[on|one]( routePattern, function(params){/*..*/} );
+router.[on|one](routePattern, function(params){/*..*/});
 
 // set handler(s) for multiple routePattern(s) (oneOff if "one" used)
 
@@ -168,29 +168,36 @@ router.[on|one](
     /* etc .. */
 );
 
+// set a group of routes sharing common prefix
+router.onGroup(prefix, function(subRouter){
+    subRouter.on(/*..*/);
+    subRouter.onGroup(prefix2, function(subRouter2){/*..*/}); // can be nested
+    // ..
+});
+
 // remove the routePattern (optionally if handlerFunc matches as well)
-router.off( routePattern | routeObj [, handlerFunc=null] );
+router.off(routePattern | routeObj [, handlerFunc = null]);
 
 // redirect to given url (with optional statusCode and statusMsg)
 // in Node, the **response object** from node.http should be passed as well
-router.redirect( url, response [, statusCode=302, statusMsg=true] );
+router.redirect(url, response [, statusCode=302, statusMsg=true]);
 
 // parse and extract uri components and optional query/fragment params as objects (using RFC3986)
-var components = router.parse( url [, query_p='query_params', fragment_p='fragment_params'] );
+var components = router.parse(url [, query_p='query_params', fragment_p='fragment_params']);
 
 // parse/unglue a uri component into a params object (using RFC3986)
-var params = router.unglue( uriComponent );
+var params = router.unglue(uriComponent);
 
 // build (url-encoded) url from baseUrl and query and/or hash objects (using RFC3986)
-var url = router.build( baseUrl, query=null, hash=null );
+var url = router.build(baseUrl, query=null, hash=null);
 
 // build/glue together a uri component from a params object (using RFC3986)
-var component = router.glue( params );
+var component = router.glue(params);
 
 // match and route a given url
 // (with optional method, only routes which match the method will be used),
 // returns true if matched any routePattern else false
-var matched = router.route( url, method="*", breakOnFirstMatch=true, originalUrl=null, originalKey=null );
+var matched = router.route(url, method="*", breakOnFirstMatch=true, originalUrl=null, originalKey=null);
 
 ```
 
@@ -201,4 +208,5 @@ var matched = router.route( url, method="*", breakOnFirstMatch=true, originalUrl
 * add support for (optional) type-casting of matched parameters [DONE]
 * add support for making string (URI) from route pattern with given parameters [DONE]
 * add support for extracting original matches if originalInput (if passed), eg with original case, is different than givenInput [DONE]
+* add support for subgroup of routes under common prefix (ie. `onGroup()`) [DONE]
 * add support for [RFC 6570 URI Template specification](http://tools.ietf.org/html/rfc6570) (TODO?)

@@ -203,133 +203,6 @@ class _G:
     inited = False
 
 
-class Route:
-
-    def to_key(route, method):
-        return ','.join(method) + '->' + route;
-
-
-    def __init__(self, delims, patterns, route, method, name = None, prefix = ''):
-        self.__args__ = [delims, patterns]
-        self.isParsed = False # lazy init
-        self.handlers = []
-        self.route = str(route) if route is not None else ''
-        self.prefix = str(prefix) if prefix is not None else ''
-        self.method = method
-        self.pattern = None
-        self.captures = None
-        self.literal = False
-        self.namespace = None
-        self.tpl = None
-        self.name = str(name) if name is not None else None
-        self.key = Route.to_key(self.route, self.method);
-
-    def __del__(self):
-        self.dispose()
-
-    def dispose(self):
-        self.__args__ = None
-        self.isParsed = None
-        self.handlers = None
-        self.route = None
-        self.prefix = None
-        self.pattern = None
-        self.captures = None
-        self.tpl = None
-        self.method = None
-        self.literal = None
-        self.namespace = None
-        self.name = None
-        self.key = None
-        return self
-
-    def parse(self):
-        if self.isParsed: return self
-        r = makeRoute(self.__args__[0], self.__args__[1], self.route, self.method, self.prefix)
-        self.pattern = r[1]
-        self.captures = r[2]
-        self.tpl = r[5]
-        self.literal = r[4] is True
-        self.__args__ = None
-        self.isParsed = True
-        return self
-
-    def match(self, route, method = '*'):
-        if (method not in self.method) and ('*' != self.method[0]): return None
-        if not self.isParsed: self.parse() # lazy init
-        route = str(route)
-        return (True if self.pattern == route else None) if self.literal else self.pattern.match(route)
-
-    def make(self, params = dict(), strict = False):
-        out = ''
-        strict = strict is True
-        if not self.isParsed: self.parse() # lazy init
-        tpl = self.tpl
-        i = 0
-        l = len(tpl)
-        while i < l:
-            tpli = tpl[i]
-            i += 1
-
-            if isinstance(tpli,str):
-                out += tpli
-            else:
-                if (tpli['name'] not in params) or (params[tpli['name']] is None):
-                    if tpli['optional']:
-                        continue
-                    else:
-                        raise RuntimeError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") missing parameter "'+tpli['name']+'"!')
-                else:
-                    param = str(params[tpli['name']])
-                    if strict and not re.search(tpli['re'], param):
-                        raise RuntimeError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") parameter "'+tpli['name']+'" value "'+param+'" does not match pattern!')
-                    part = tpli['tpl']
-                    j = 0
-                    k = len(part)
-                    while j < k:
-                        out += param if part[j] is True else part[j]
-                        j += 1
-        return out
-
-    def sub(self, match, data, type = None, originalInput = None, originalKey = None):
-        if (not self.isParsed) or self.literal: return self
-
-        givenInput = match.group(0)
-        isDifferentInput = isinstance(originalInput, str) and (originalInput != givenInput)
-        hasOriginal = isinstance(originalKey, str)
-        odata = {} if hasOriginal else None
-        for v,g in self.captures.items():
-            groupIndex = g[0]
-            groupTypecaster = g[1]
-            if match.group(groupIndex):
-                # if original input is given,
-                # get match from original input (eg with original case)
-                # else what matched
-                matchedValue = match.group(groupIndex)
-                matchedOriginalValue = originalInput[match.start(groupIndex):match.end(groupIndex)] if isDifferentInput else matchedValue
-
-                if type and (v in type) and type[v]:
-                    typecaster = type[v]
-                    if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
-                        typecaster = Dromeo.TYPES[typecaster]
-                    data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
-                    if hasOriginal: odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
-                elif groupTypecaster:
-                    typecaster = groupTypecaster
-                    data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
-                    if hasOriginal: odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
-                else:
-                    data[v] = matchedValue
-                    if hasOriginal: odata[v] = matchedOriginalValue
-            elif v not in data:
-                data[v] = None
-                if hasOriginal: odata[v] = None
-            elif hasOriginal:
-                odata[v] = data[v]
-        if hasOriginal: data[str(originalKey)] = odata
-        return self
-
-
 def parse_url(s, component = None, mode = 'php'):
     # http://www.php2python.com/wiki/function.parse-url/
     global _G
@@ -613,7 +486,7 @@ def to_method(method):
     method = list(sorted(method))
     return method
 
-def addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff = False):
+def insertRoute(router, route, oneOff = False):
     if route and isinstance(route, dict) and ('route' in route) and isinstance(route['route'], str) and ('handler' in route) and callable(route['handler']):
         oneOff = (oneOff is True)
         handler = route['handler']
@@ -621,18 +494,18 @@ def addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff = Fal
         types = dict(route['types']) if ('types' in route) and route['types'] else None
         name = str(route['name']) if 'name' in route else None
         method = to_method(route['method'] if 'method' in route else None)
-        route = str(route['route'])
+        route = router.key + str(route['route'])
         key = Route.to_key(route, method)
         r = None
-        for rt in routes:
+        for rt in router._routes:
             if key == rt.key:
                 r = rt
                 break
 
         if not r:
-            r = Route(delims, patterns, route, method, name, prefix)
-            routes.append(r)
-            if r.name and len(r.name): named_routes[r.name] = r
+            r = Route(router._delims, router._patterns, route, method, name, router._prefix)
+            router._routes.append(r)
+            router._addNamedRoute(r)
 
         r.handlers.append([
             handler,
@@ -643,19 +516,13 @@ def addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff = Fal
         ])
 
 
-def addRoutes(routes, named_routes, delims, patterns, prefix, args, oneOff = False):
-    for route in args:
-        addRoute(routes, named_routes, delims, patterns, prefix, route, oneOff)
-
-
-def clearRoute(routes, named_routes, key):
-    l = len(routes)-1
+def clearRoute(router, key):
+    l = len(router._routes)-1
     while l >= 0:
-        if key == routes[l].key:
-            route = routes[l]
-            del routes[l:l+1]
-            if route.name and (route.name in named_routes):
-                del named_routes[route.name]
+        if key == router._routes[l].key:
+            route = router._routes[l]
+            del router._routes[l:l+1]
+            router._delNamedRoute(route)
             route.dispose()
         l -= 1
 
@@ -678,6 +545,132 @@ def type_to_array(v):
 def type_to_params(v):
     return Dromeo.unglue_params(v) if isinstance(v, str) else v
 
+
+class Route:
+
+    def to_key(route, method):
+        return ','.join(method) + '->' + route;
+
+
+    def __init__(self, delims, patterns, route, method, name = None, prefix = ''):
+        self.__args__ = [delims, patterns]
+        self.isParsed = False # lazy init
+        self.handlers = []
+        self.route = str(route) if route is not None else ''
+        self.prefix = str(prefix) if prefix is not None else ''
+        self.method = method
+        self.pattern = None
+        self.captures = None
+        self.literal = False
+        self.namespace = None
+        self.tpl = None
+        self.name = str(name) if name is not None else None
+        self.key = Route.to_key(self.route, self.method);
+
+    def __del__(self):
+        self.dispose()
+
+    def dispose(self):
+        self.__args__ = None
+        self.isParsed = None
+        self.handlers = None
+        self.route = None
+        self.prefix = None
+        self.pattern = None
+        self.captures = None
+        self.tpl = None
+        self.method = None
+        self.literal = None
+        self.namespace = None
+        self.name = None
+        self.key = None
+        return self
+
+    def parse(self):
+        if self.isParsed: return self
+        r = makeRoute(self.__args__[0], self.__args__[1], self.route, self.method, self.prefix)
+        self.pattern = r[1]
+        self.captures = r[2]
+        self.tpl = r[5]
+        self.literal = r[4] is True
+        self.__args__ = None
+        self.isParsed = True
+        return self
+
+    def match(self, route, method = '*'):
+        if (method not in self.method) and ('*' != self.method[0]): return None
+        if not self.isParsed: self.parse() # lazy init
+        route = str(route)
+        return (True if self.pattern == route else None) if self.literal else self.pattern.match(route)
+
+    def make(self, params = dict(), strict = False):
+        out = ''
+        strict = strict is True
+        if not self.isParsed: self.parse() # lazy init
+        tpl = self.tpl
+        i = 0
+        l = len(tpl)
+        while i < l:
+            tpli = tpl[i]
+            i += 1
+
+            if isinstance(tpli,str):
+                out += tpli
+            else:
+                if (tpli['name'] not in params) or (params[tpli['name']] is None):
+                    if tpli['optional']:
+                        continue
+                    else:
+                        raise RuntimeError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") missing parameter "'+tpli['name']+'"!')
+                else:
+                    param = str(params[tpli['name']])
+                    if strict and not re.search(tpli['re'], param):
+                        raise RuntimeError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") parameter "'+tpli['name']+'" value "'+param+'" does not match pattern!')
+                    part = tpli['tpl']
+                    j = 0
+                    k = len(part)
+                    while j < k:
+                        out += param if part[j] is True else part[j]
+                        j += 1
+        return out
+
+    def sub(self, match, data, type = None, originalInput = None, originalKey = None):
+        if (not self.isParsed) or self.literal: return self
+
+        givenInput = match.group(0)
+        isDifferentInput = isinstance(originalInput, str) and (originalInput != givenInput)
+        hasOriginal = isinstance(originalKey, str)
+        odata = {} if hasOriginal else None
+        for v,g in self.captures.items():
+            groupIndex = g[0]
+            groupTypecaster = g[1]
+            if match.group(groupIndex):
+                # if original input is given,
+                # get match from original input (eg with original case)
+                # else what matched
+                matchedValue = match.group(groupIndex)
+                matchedOriginalValue = originalInput[match.start(groupIndex):match.end(groupIndex)] if isDifferentInput else matchedValue
+
+                if type and (v in type) and type[v]:
+                    typecaster = type[v]
+                    if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
+                        typecaster = Dromeo.TYPES[typecaster]
+                    data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
+                    if hasOriginal: odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
+                elif groupTypecaster:
+                    typecaster = groupTypecaster
+                    data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
+                    if hasOriginal: odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
+                else:
+                    data[v] = matchedValue
+                    if hasOriginal: odata[v] = matchedOriginalValue
+            elif v not in data:
+                data[v] = None
+                if hasOriginal: odata[v] = None
+            elif hasOriginal:
+                odata[v] = data[v]
+        if hasOriginal: data[str(originalKey)] = odata
+        return self
 
 class Dromeo:
     """
@@ -755,7 +748,7 @@ class Dromeo:
         return None
 
 
-    def __init__(self, route_prefix = '', top = None):
+    def __init__(self, prefix = '', group = '', top = None):
         self._delims = ['{', '}', '%', '%', ':']
         self._patterns = {}
         self.definePattern('ALPHA',      '[a-zA-Z\\-_]+')
@@ -772,8 +765,8 @@ class Dromeo:
         self._named_routes = {}
         self._fallback = False
         self._top = top if isinstance(top, Dromeo) else self
-        self.key = str(route_prefix) if route_prefix is not None else ''
-        self._prefix = self._top.key + self.key if self != self._top else self.key
+        self.key = '' if self == self._top else self._top.key + str(group)
+        self._prefix = '' if prefix is None else str(prefix)
 
 
     def __del__(self):
@@ -797,8 +790,8 @@ class Dromeo:
     def isTop(self):
         return (self._top is None) or (self == self._top)
 
-    def clone(self, prefix = '', top = None):
-        cloned = Dromeo(prefix, top)
+    def clone(self, group = ''):
+        cloned = Dromeo(self._prefix, group, self)
         cloned.defineDelimiters(self._delims)
         for className in self._patterns:
             args = self._patterns[className]
@@ -882,7 +875,7 @@ class Dromeo:
     def onGroup(self, groupRoute, handler):
         groupRoute = str(groupRoute)
         if len(groupRoute) and callable(handler):
-            groupRouter = self.clone(groupRoute, self)
+            groupRouter = self.clone(groupRoute)
             self._routes.append(groupRouter)
             handler(groupRouter)
         return self
@@ -903,7 +896,8 @@ class Dromeo:
         else:
             routes = args
 
-        addRoutes(self._routes, self._named_routes, self._delims, self._patterns, self._prefix, routes)
+        for route in routes:
+            insertRoute(self, route, False)
         return self
 
 
@@ -923,7 +917,8 @@ class Dromeo:
         else:
             routes = args
 
-        addRoutes(self._routes, self._named_routes, self._delims, self._patterns, self._prefix, routes, True)
+        for route in routes:
+            insertRoute(self, route, True)
         return self
 
 
@@ -944,9 +939,12 @@ class Dromeo:
             key = Route.to_key(route, to_method(method))
             r = None
             for rt in routes:
-                if key == rt.key:
-                    r = rt
-                    break
+                if isinstance(rt, Dromeo):
+                    rt.off(route, handler, method)
+                else:
+                    if key == rt.key:
+                        r = rt
+                        break
 
             if not r: return self
 
@@ -958,9 +956,9 @@ class Dromeo:
                         del r.handlers[l:l+1]
                     l -= 1
                 if not len(r.handlers):
-                    clearRoute(routes, named_routes, key)
+                    clearRoute(self, key)
             else:
-                clearRoute(routes, named_routes, key)
+                clearRoute(self, key)
 
         elif isinstance(route, str) and len(route):
             route = str(route)
@@ -971,6 +969,8 @@ class Dromeo:
                     if route == rt.key:
                         r = rt
                         break
+                    else:
+                        rt.off(route, handler, method)
                 else:
                     if key == rt.key:
                         r = rt
@@ -990,9 +990,9 @@ class Dromeo:
                             del r.handlers[l:l+1]
                         l -= 1
                     if not len(r.handlers):
-                        clearRoute(routes, named_routes, key)
+                        clearRoute(self, key)
                 else:
-                    clearRoute(routes, named_routes, key)
+                    clearRoute(self, key)
 
         return self
 
@@ -1011,8 +1011,8 @@ class Dromeo:
         proceed = True
         found = False
         r = str(r) if r is not None else ''
-        prefix = self._prefix
-        if prefix and len(prefix):
+        prefix = self._prefix + self.key
+        if len(prefix):
             proceed = (prefix == r[0:len(prefix)])
 
         if proceed:
@@ -1064,7 +1064,7 @@ class Dromeo:
                     for h in to_remove:
                         del route.handlers[h:h+1]
                     if not len(route.handlers):
-                        clearRoute(self._routes, self._named_routes, route.key)
+                        clearRoute(self, route.key)
 
                 if breakOnFirstMatch: return True
 
@@ -1080,6 +1080,22 @@ class Dromeo:
             })
 
         return False
+
+    def _addNamedRoute(self, route):
+        if self.isTop():
+            if isinstance(route, Dromeo.Route) and route.name and len(route.name):
+                self._named_routes[route.name] = route
+        else:
+            self.top()._addNamedRoute(route)
+        return self
+
+    def _delNamedRoute(self, route):
+        if self.isTop():
+            if isinstance(route, Dromeo.Route) and route.name and (route.name in self._named_routes):
+                del self._named_routes[route.name]
+        else:
+            self.top()._delNamedRoute(route)
+        return self
 
 
 # if used with 'import *'

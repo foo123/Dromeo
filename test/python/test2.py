@@ -51,7 +51,20 @@ router.on([
         'name': 'route3',
         'handler': defaultHandler
     }
-])
+]).onGroup('/foo', lambda router: (
+router.onGroup('/bar', lambda router: (
+router.on({
+        'route':'/{:user}',
+        'name': 'route5',
+        'handler': defaultHandler
+    })
+)).on({
+        'route':'/{:user}',
+        'name': 'route6',
+        'handler': defaultHandler
+    })
+))
+
 
 def make(route, params=dict(), strict=False):
     try:
@@ -73,4 +86,6 @@ print(make('route3', {'user':'foo','id':'123'}))
 print(make('route4', {'user':'foo'}))
 print(make('route4', {'user':'foo','id':'123','action':'test'}))
 print(make('route4', {'user':'foo','action':'test'}, True))
+print(make('route5', {'user':'user'}))
+print(make('route6', {'user':'user'}))
 

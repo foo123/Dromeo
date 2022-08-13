@@ -34,7 +34,21 @@ $router->on(array(
         'name'=> 'route3',
         'handler'=> 'defaultHandler'
     )
-));
+))
+->onGroup('/foo', function($router) {
+    $router->onGroup('/bar', function($router) {
+        $router->on([
+            'route'=>'/{:user}',
+            'name'=> 'route5',
+            'handler'=> 'defaultHandler'
+        ]);
+    })
+    ->on([
+        'route'=>'/{:user}',
+        'name'=> 'route6',
+        'handler'=> 'defaultHandler'
+    ]);
+});
 
 function make($route, $params=array(), $strict=false)
 {
@@ -60,3 +74,5 @@ echo_(make('route3', array('user'=>'foo','id'=>'123')));
 echo_(make('route4', array('user'=>'foo')));
 echo_(make('route4', array('user'=>'foo','id'=>'123','action'=>'test')));
 echo_(make('route4', array('user'=>'foo','action'=>'test'), true));
+echo_(make('route5', array('user'=>'user')));
+echo_(make('route6', array('user'=>'user')));
