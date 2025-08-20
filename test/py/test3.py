@@ -50,6 +50,19 @@ router1.on([
         'handler': defaultHandler
     }
 ])
+router1.onGroup('/bar', lambda router: (
+    router.on({
+        'route': '/{:user}/{:id}',
+        'name': 'route3',
+        'handler': defaultHandler
+    }).onGroup('/baz', lambda router: (
+        router.on({
+            'route': '/{:user}/{:id}',
+            'name': 'route4',
+            'handler': defaultHandler
+        })
+    ))
+))
 router2.on([
     {
         'route':'/foo{/%ALPHA%-%ALPHA%:user(2)}',
@@ -63,6 +76,8 @@ print("\n")
 
 router1.route('/FOO/USER/ID'.lower(), '*', True, get_from_source('/FOO/USER/ID'))
 router1.route('/FOO/Foo/ID'.lower(), '*', True, get_from_source('/FOO/Foo/ID'))
+router1.route('/Bar/Foo/ID'.lower(), '*', True, get_from_source('/Bar/Foo/ID'))
+router1.route('/Bar/bAz/Foo/ID'.lower(), '*', True, get_from_source('/Bar/bAz/Foo/ID'))
 router2.route('/FOO/USER-User'.lower(), '*', True, get_from_source('/FOO/USER-User'))
 router2.route('/FOO/Foo-fOO'.lower(), '*', True, get_from_source('/FOO/Foo-fOO'))
 
