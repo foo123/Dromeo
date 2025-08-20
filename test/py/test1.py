@@ -4,19 +4,25 @@ import os, sys
 import pprint
 
 def import_module(name, path):
-    import imp
-    try:
-        mod_fp, mod_path, mod_desc  = imp.find_module(name, [path])
-        mod = getattr( imp.load_module(name, mod_fp, mod_path, mod_desc), name )
-    except ImportError as exc:
-        mod = None
-        sys.stderr.write("Error: failed to import module ({})".format(exc))
-    finally:
-        if mod_fp: mod_fp.close()
-    return mod
+    #import imp
+    #try:
+    #    mod_fp, mod_path, mod_desc  = imp.find_module(name, [path])
+    #    mod = getattr( imp.load_module(name, mod_fp, mod_path, mod_desc), name )
+    #except ImportError as exc:
+    #    mod = None
+    #    sys.stderr.write("Error: failed to import module ({})".format(exc))
+    #finally:
+    #    if mod_fp: mod_fp.close()
+    #return mod
+    import importlib.util, sys
+    spec = importlib.util.spec_from_file_location(name, path+name+'.py')
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return getattr(mod, name)
 
 # import the Dromeo.py engine (as a) module, probably you will want to place this in another dir/package
-Dromeo = import_module('Dromeo', os.path.join(os.path.dirname(__file__), '../../src/python/'))
+Dromeo = import_module('Dromeo', os.path.join(os.path.dirname(__file__), '../../src/py/'))
 if not Dromeo:
     print ('Could not load the Dromeo Module')
     sys.exit(1)

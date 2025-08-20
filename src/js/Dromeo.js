@@ -2,7 +2,7 @@
 *
 *   Dromeo
 *   Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
-*   @version: 1.2.0
+*   @version: 1.3.0
 *
 *   https://github.com/foo123/Dromeo
 *
@@ -23,100 +23,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
     /* module factory */        function ModuleFactory__Dromeo(undef) {
 "use strict";
 
-var __version__ = "1.2.0",
-
-    // http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
-    HTTP_STATUS = {
-    // 1xx Informational
-     100: "Continue"
-    ,101: "Switching Protocols"
-    ,102: "Processing"
-    ,103: "Early Hints"
-
-    // 2xx Success
-    ,200: "OK"
-    ,201: "Created"
-    ,202: "Accepted"
-    ,203: "Non-Authoritative Information"
-    ,204: "No Content"
-    ,205: "Reset Content"
-    ,206: "Partial Content"
-    ,207: "Multi-Status"
-    ,208: "Already Reported"
-    ,226: "IM Used"
-
-    // 3xx Redirection
-    ,300: "Multiple Choices"
-    ,301: "Moved Permanently"
-    ,302: "Found" //Previously "Moved temporarily"
-    ,303: "See Other"
-    ,304: "Not Modified"
-    ,305: "Use Proxy"
-    ,306: "Switch Proxy"
-    ,307: "Temporary Redirect"
-    ,308: "Permanent Redirect"
-
-    // 4xx Client Error
-    ,400: "Bad Request"
-    ,401: "Unauthorized"
-    ,402: "Payment Required"
-    ,403: "Forbidden"
-    ,404: "Not Found"
-    ,405: "Method Not Allowed"
-    ,406: "Not Acceptable"
-    ,407: "Proxy Authentication Required"
-    ,408: "Request Timeout"
-    ,409: "Conflict"
-    ,410: "Gone"
-    ,411: "Length Required"
-    ,412: "Precondition Failed"
-    ,413: "Request Entity Too Large"
-    ,414: "Request-URI Too Long"
-    ,415: "Unsupported Media Type"
-    ,416: "Requested Range Not Satisfiable"
-    ,417: "Expectation Failed"
-    ,418: "I'm a teapot"
-    ,419: "Authentication Timeout"
-    ,422: "Unprocessable Entity"
-    ,423: "Locked"
-    ,424: "Failed Dependency"
-    ,426: "Upgrade Required"
-    ,428: "Precondition Required"
-    ,429: "Too Many Requests"
-    ,431: "Request Header Fields Too Large"
-    ,440: "Login Timeout"
-    ,444: "No Response"
-    ,449: "Retry With"
-    ,450: "Blocked by Windows Parental Controls"
-    ,451: "Unavailable For Legal Reasons"
-    ,494: "Request Header Too Large"
-    ,495: "Cert Error"
-    ,496: "No Cert"
-    ,497: "HTTP to HTTPS"
-    ,498: "Token expired/invalid"
-    ,499: "Client Closed Request"
-
-    // 5xx Server Error
-    ,500: "Internal Server Error"
-    ,501: "Not Implemented"
-    ,502: "Bad Gateway"
-    ,503: "Service Unavailable"
-    ,504: "Gateway Timeout"
-    ,505: "HTTP Version Not Supported"
-    ,506: "Variant Also Negotiates"
-    ,507: "Insufficient Storage"
-    ,508: "Loop Detected"
-    ,509: "Bandwidth Limit Exceeded"
-    ,510: "Not Extended"
-    ,511: "Network Authentication Required"
-    ,520: "Origin Error"
-    ,521: "Web server is down"
-    ,522: "Connection timed out"
-    ,523: "Proxy Declined Request"
-    ,524: "A timeout occurred"
-    ,598: "Network read timeout error"
-    ,599: "Network connect timeout error"
-    },
+var __version__ = "1.3.0",
 
     _patternOr = /^([^|]+\|.+)$/,
     _nested = /\[([^\]]*?)\]$/,
@@ -314,11 +221,11 @@ function parse_str(str)
                 {
                     // To insert new dimension
                     /*ct = -1;
-                    for ( p in obj )
+                    for (p in obj)
                     {
-                        if ( HAS.call(obj,p) )
+                        if (HAS.call(obj,p))
                         {
-                            if ( +p > ct && p.match(/^\d+$/g) )
+                            if (+p > ct && p.match(/^\d+$/g))
                             {
                                 ct = +p;
                             }
@@ -623,7 +530,7 @@ function makeRoute(_delims, _patterns, route, method, prefix)
 
             // http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
             p = part.split(_delims[4]);
-            if (!p[0].length)
+            if (!trim(p[0]).length)
             {
                 // http://abc.org/{:user}/{:?id}
                 // assume pattern is %PART%
@@ -771,6 +678,13 @@ function clearRoute(self, key)
         }
     }
 }
+function DromeoException(message)
+{
+    Error.call(this, message);
+    this.name = 'DromeoException';
+}
+DromeoException[PROTO] = Object.create(Error[PROTO]);
+DromeoException[PROTO].constructor = DromeoException;
 
 function Route(delims, patterns, route, method, name, prefix)
 {
@@ -847,7 +761,7 @@ Route[PROTO] = {
     },
 
     make: function(params, strict) {
-        var self = this, out = '', i, l, j, k, param, part, tpl;
+        var self = this, out = '', i, l, j, k, p, param, part, tpl;
         params = params || {};
         strict = true === strict;
         if (!self.isParsed) self.parse(); // lazy init
@@ -868,20 +782,30 @@ Route[PROTO] = {
                     }
                     else
                     {
-                        throw new ReferenceError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") missing parameter "'+tpl[i].name+'"!');
+                        throw new DromeoException('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") missing parameter "'+tpl[i].name+'"!');
                     }
                 }
                 else
                 {
-                    param = String(params[tpl[i].name]);
-                    if (strict && !tpl[i].re.test(param))
+                    param = params[tpl[i].name];
+                    if (!is_array(param)) param = [param];
+                    param = param.map(String);
+                    if (strict && !tpl[i].re.test(param[0]))
                     {
-                        throw new ReferenceError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") parameter "'+tpl[i].name+'" value "'+param+'" does not match pattern!');
+                        throw new DromeoException('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") parameter "'+tpl[i].name+'" value "'+param[0]+'" does not match pattern!');
                     }
                     part = tpl[i].tpl;
-                    for (j=0,k=part.length; j<k; ++j)
+                    for (j=0,p=0,k=part.length; j<k; ++j)
                     {
-                        out += true === part[j] ? param : part[j];
+                        if (true === part[j])
+                        {
+                            out += (p < param.length ? param[p] : param[0]);
+                            ++p;
+                        }
+                        else
+                        {
+                            out += part[j];
+                        }
                     }
                 }
             }
@@ -889,18 +813,16 @@ Route[PROTO] = {
         return out;
     },
 
-    sub: function(match, data, type, originalInput, originalKey) {
+    sub: function(match, data, type, getter) {
         var self = this, v, g, i,
             groupIndex, groupTypecaster, groupMatchIndex,
-            givenInput, isDifferentInput, hasOriginal, odata,
-            matchedValue, matchedOriginalValue, typecaster;
+            givenInput, isDifferentInput, hasGetter,
+            matchedValue, matchedValueTrue, typecaster;
 
         if (!self.isParsed || self.literal) return self;
 
         givenInput = match[0];
-        isDifferentInput = is_string(originalInput) && (originalInput !== givenInput);
-        hasOriginal = is_string(originalKey);
-        odata = hasOriginal ? {} : null;
+        hasGetter = is_callable(getter);
         for (v in self.captures)
         {
             if (!HAS.call(self.captures, v)) continue;
@@ -911,17 +833,17 @@ Route[PROTO] = {
             if (match[groupIndex])
             {
                 matchedValue = match[groupIndex];
-                if (isDifferentInput)
+                if (hasGetter)
                 {
-                    // if original input is given,
-                    // find index and get match from original input (eg with original case)
+                    // if getter is given,
+                    // get true match from getter (eg with original case)
                     i = groupMatchIndex(match); // match index
-                    matchedOriginalValue = originalInput.slice(i, i+matchedValue.length);
+                    matchedValueTrue = String(getter(v, matchedValue, i, i+matchedValue.length, givenInput));
                 }
                 else
                 {
                     // else what matched
-                    matchedOriginalValue = matchedValue;
+                    matchedValueTrue = matchedValue;
                 }
 
                 if (type && HAS.call(type, v) && type[v])
@@ -929,32 +851,23 @@ Route[PROTO] = {
                     typecaster = type[v];
                     if (is_string(typecaster) && HAS.call(Dromeo.TYPES, typecaster))
                         typecaster = Dromeo.TYPES[typecaster];
-                    data[v] = is_callable(typecaster) ? typecaster(matchedValue) : matchedValue;
-                    if (hasOriginal) odata[v] = is_callable(typecaster) ? typecaster(matchedOriginalValue) : matchedOriginalValue;
+                    data[v] = is_callable(typecaster) ? typecaster(matchedValueTrue) : matchedValueTrue;
                 }
                 else if (groupTypecaster)
                 {
                     typecaster = groupTypecaster;
-                    data[v] = is_callable(typecaster) ? typecaster(matchedValue) : matchedValue;
-                    if (hasOriginal) odata[v] = is_callable(typecaster) ? typecaster(matchedOriginalValue) : matchedOriginalValue;
+                    data[v] = is_callable(typecaster) ? typecaster(matchedValueTrue) : matchedValueTrue;
                 }
                 else
                 {
-                    data[v] = matchedValue;
-                    if (hasOriginal) odata[v] = matchedOriginalValue;
+                    data[v] = matchedValueTrue;
                 }
             }
             else if (!HAS.call(data, v))
             {
                 data[v] = null;
-                if (hasOriginal) odata[v] = null;
-            }
-            else if (hasOriginal)
-            {
-                odata[v] = data[v];
             }
         }
-        if (hasOriginal) data[String(originalKey)] = odata;
         return self;
     }
 };
@@ -980,7 +893,7 @@ function Dromeo(prefix, group, top)
     self._named_routes = {};
     self._fallback = false;
     self._top = top instanceof Dromeo ? top : self;
-    self.key = self === self._top ? '' : self._top.key + String(group);
+    self.key = self === self._top ? '' : (self._top.key + String(group));
     self._prefix = null == prefix ? '' : String(prefix);
 };
 
@@ -1008,7 +921,7 @@ function type_to_params(v)
 }
 
 Dromeo.VERSION = __version__;
-Dromeo.HTTP_STATUS = HTTP_STATUS;
+Dromeo.Exception = DromeoException;
 Dromeo.Route = Route;
 Dromeo.to_method = to_method;
 Dromeo.TYPES = {
@@ -1205,37 +1118,6 @@ Dromeo[PROTO] = {
         return Dromeo.build_components(baseUrl, query, hash, q, h);
     },
 
-    redirect: function(url, response, statusCode, statusMsg) {
-        // node redirection based on http module
-        // http://nodejs.org/api/http.html#http_http
-        if (url)
-        {
-            if (!isNode)
-            {
-                document.location.href = url;
-                // make sure document is reloaded in case only hash changes
-                //document.location.reload(true);
-            }
-            else if (response)
-            {
-                if (arguments.length < 3) statusCode = 302;
-                if (arguments.length < 4) statusMsg = true;
-
-                if (statusMsg)
-                {
-                    if (true === statusMsg) statusMsg = Dromeo.HTTP_STATUS[statusCode] || '';
-                    response.writeHead(statusCode, statusMsg, {"Location": url});
-                }
-                else
-                {
-                    response.writeHead(statusCode, {"Location": url});
-                }
-                response.end();
-            }
-        }
-        return this;
-    },
-
     onGroup: function(groupRoute, handler) {
         var self = this, groupRouter;
         groupRoute = String(groupRoute);
@@ -1250,7 +1132,7 @@ Dromeo[PROTO] = {
 
     on: function(/* var args here .. */) {
         var self = this, args = arguments,
-            args_len = args.length, routes
+            args_len = args.length, routes, i, n
         ;
 
         if (1 === args_len)
@@ -1271,7 +1153,7 @@ Dromeo[PROTO] = {
         {
             routes = args;
         }
-        for (var i=0; i<routes.length; ++i)
+        for (i=0,n=routes.length; i<n; ++i)
         {
             insertRoute(self, routes[i], false);
         }
@@ -1280,7 +1162,7 @@ Dromeo[PROTO] = {
 
     one: function(/* var args here .. */) {
         var self = this, args = arguments,
-            args_len = args.length, routes
+            args_len = args.length, routes, i, n
         ;
 
         if (1 === args_len)
@@ -1301,7 +1183,7 @@ Dromeo[PROTO] = {
         {
             routes = args;
         }
-        for (var i=0; i<routes.length; ++i)
+        for (i=0,n=routes.length; i<n; ++i)
         {
             insertRoute(self, routes[i], true);
         }
@@ -1430,7 +1312,7 @@ Dromeo[PROTO] = {
         return HAS.call(routes, named_route) ? routes[named_route].make(params, strict) : null;
     },
 
-    route: function(r, method, breakOnFirstMatch, originalR, originalKey) {
+    route: function(r, method, breakOnFirstMatch, getter) {
         var self = this, proceed, prefix, routes,
             route, params, defaults, type, to_remove,
             i, l, lh, h, match, handlers, handler, found;
@@ -1456,7 +1338,7 @@ Dromeo[PROTO] = {
                 if (route instanceof Dromeo)
                 {
                     // group router
-                    match = route.route(r, method, breakOnFirstMatch, originalR, originalKey);
+                    match = route.route(r, method, breakOnFirstMatch, getter);
                     if (!match) continue;
                     found = true;
                 }
@@ -1492,8 +1374,7 @@ Dromeo[PROTO] = {
                             fallback: false,
                             data: extend({}, defaults, true)
                         };
-                        if (is_string(originalR)) params['route_original'] = originalR;
-                        route.sub(match, params.data, type, originalR, originalKey);
+                        route.sub(match, params.data, type, getter);
 
                         handler[4] = 1; // handler called
                         if (handler[3]) to_remove.unshift(h);

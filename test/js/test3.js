@@ -9,6 +9,12 @@ function defaultHandler(route)
     echo('Default Handler');
     echo(route);
 }
+function get_from_source(source)
+{
+    return function(key, val, start, end, input) {
+        return source.slice(start, end);
+    };
+}
 
 var router1 = new Dromeo(), router2 = new Dromeo();
 
@@ -30,7 +36,7 @@ router2.on([
 echo('Dromeo.VERSION = ' + Dromeo.VERSION);
 echo();
 
-router1.route('/FOO/USER/ID'.toLowerCase(), '*', true, '/FOO/USER/ID', 'ORIG');
-router1.route('/FOO/Foo/ID'.toLowerCase(), '*', true, '/FOO/Foo/ID', 'ORIG');
-router2.route('/FOO/USER-User'.toLowerCase(), '*', true, '/FOO/USER-User', 'ORIG');
-router2.route('/FOO/Foo-fOO'.toLowerCase(), '*', true, '/FOO/Foo-fOO', 'ORIG');
+router1.route('/FOO/USER/ID'.toLowerCase(), '*', true, get_from_source('/FOO/USER/ID'));
+router1.route('/FOO/Foo/ID'.toLowerCase(), '*', true, get_from_source('/FOO/Foo/ID'));
+router2.route('/FOO/USER-User'.toLowerCase(), '*', true, get_from_source('/FOO/USER-User'));
+router2.route('/FOO/Foo-fOO'.toLowerCase(), '*', true, get_from_source('/FOO/Foo-fOO'));

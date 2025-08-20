@@ -55,7 +55,7 @@ function make($route, $params=array(), $strict=false)
     global $router;
     try {
         $out = $router->make($route, $params, $strict);
-    } catch( \Exception $err ) {
+    } catch (DromeoException $err) {
         $out = $err->getMessage();
     }
     return $out;

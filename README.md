@@ -7,14 +7,7 @@ A Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
 ![Dromeo](/dromeo.jpg)
 
 
-Version: **1.2.0**
-
-
-[Etymology of *"dromos"* (path)](https://en.wiktionary.org/wiki/%CE%B4%CF%81%CF%8C%CE%BC%CE%BF%CF%82#Ancient_Greek)
-[Etymology pf *"path"*](https://en.wiktionary.org/wiki/path)
-
-
-[Dromeo.js](https://raw.githubusercontent.com/foo123/Dromeo/master/src/js/Dromeo.js)
+Version: **1.3.0** in progress
 
 
 **see also:**
@@ -25,6 +18,7 @@ Version: **1.2.0**
 * [SimpleCaptcha](https://github.com/foo123/simple-captcha) a simple, image-based, mathematical captcha with increasing levels of difficulty for PHP, JavaScript, Python
 * [Dromeo](https://github.com/foo123/Dromeo) a flexible, and powerful agnostic router for PHP, JavaScript, Python
 * [PublishSubscribe](https://github.com/foo123/PublishSubscribe) a simple and flexible publish-subscribe pattern implementation for PHP, JavaScript, Python
+* [Localizer](https://github.com/foo123/Localizer) a simple and versatile localization class (l10n) for PHP, JavaScript, Python
 * [Importer](https://github.com/foo123/Importer) simple class &amp; dependency manager and loader for PHP, JavaScript, Python
 * [Contemplate](https://github.com/foo123/Contemplate) a fast and versatile isomorphic template engine for PHP, JavaScript, Python
 * [HtmlWidget](https://github.com/foo123/HtmlWidget) html widgets, made as simple as possible, both client and server, both desktop and mobile, can be used as (template) plugins and/or standalone for PHP, JavaScript, Python (can be used as [plugins for Contemplate](https://github.com/foo123/Contemplate/blob/master/src/js/plugins/plugins.txt))
@@ -177,10 +171,6 @@ router.onGroup(prefix, function(subRouter){
 
 // remove the routePattern (optionally if handlerFunc matches as well)
 router.off(routePattern | routeObj [, handlerFunc = null]);
-
-// redirect to given url (with optional statusCode and statusMsg)
-// in Node, the **response object** from node.http should be passed as well
-router.redirect(url, response [, statusCode=302, statusMsg=true]);
 
 // parse and extract uri components and optional query/fragment params as objects (using RFC3986)
 var components = router.parse(url [, query_p='query_params', fragment_p='fragment_params']);

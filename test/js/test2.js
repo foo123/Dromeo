@@ -53,7 +53,7 @@ function make(route, params, strict)
     var out;
     try {
         out = router.make(route, params, strict);
-    } catch( err ) {
+    } catch (err) {
         out = err.message;
     }
     return out;

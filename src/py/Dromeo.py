@@ -2,7 +2,7 @@
 ##
 #   Dromeo
 #   Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
-#   @version: 1.2.0
+#   @version: 1.3.0
 #
 #   https://github.com/foo123/Dromeo
 #
@@ -93,99 +93,6 @@ def is_numeric_array(o):
 
 # (protected) global properties
 class _G:
-
-    # http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
-    HTTP_STATUS = {
-    # 1xx Informational
-     100: "Continue"
-    ,101: "Switching Protocols"
-    ,102: "Processing"
-    ,103: "Early Hints"
-
-    # 2xx Success
-    ,200: "OK"
-    ,201: "Created"
-    ,202: "Accepted"
-    ,203: "Non-Authoritative Information"
-    ,204: "No Content"
-    ,205: "Reset Content"
-    ,206: "Partial Content"
-    ,207: "Multi-Status"
-    ,208: "Already Reported"
-    ,226: "IM Used"
-
-    # 3xx Redirection
-    ,300: "Multiple Choices"
-    ,301: "Moved Permanently"
-    ,302: "Found" #Previously "Moved temporarily"
-    ,303: "See Other"
-    ,304: "Not Modified"
-    ,305: "Use Proxy"
-    ,306: "Switch Proxy"
-    ,307: "Temporary Redirect"
-    ,308: "Permanent Redirect"
-
-    # 4xx Client Error
-    ,400: "Bad Request"
-    ,401: "Unauthorized"
-    ,402: "Payment Required"
-    ,403: "Forbidden"
-    ,404: "Not Found"
-    ,405: "Method Not Allowed"
-    ,406: "Not Acceptable"
-    ,407: "Proxy Authentication Required"
-    ,408: "Request Timeout"
-    ,409: "Conflict"
-    ,410: "Gone"
-    ,411: "Length Required"
-    ,412: "Precondition Failed"
-    ,413: "Request Entity Too Large"
-    ,414: "Request-URI Too Long"
-    ,415: "Unsupported Media Type"
-    ,416: "Requested Range Not Satisfiable"
-    ,417: "Expectation Failed"
-    ,418: "I'm a teapot"
-    ,419: "Authentication Timeout"
-    ,422: "Unprocessable Entity"
-    ,423: "Locked"
-    ,424: "Failed Dependency"
-    ,426: "Upgrade Required"
-    ,428: "Precondition Required"
-    ,429: "Too Many Requests"
-    ,431: "Request Header Fields Too Large"
-    ,440: "Login Timeout"
-    ,444: "No Response"
-    ,449: "Retry With"
-    ,450: "Blocked by Windows Parental Controls"
-    ,451: "Unavailable For Legal Reasons"
-    ,494: "Request Header Too Large"
-    ,495: "Cert Error"
-    ,496: "No Cert"
-    ,497: "HTTP to HTTPS"
-    ,498: "Token expired/invalid"
-    ,499: "Client Closed Request"
-
-    # 5xx Server Error
-    ,500: "Internal Server Error"
-    ,501: "Not Implemented"
-    ,502: "Bad Gateway"
-    ,503: "Service Unavailable"
-    ,504: "Gateway Timeout"
-    ,505: "HTTP Version Not Supported"
-    ,506: "Variant Also Negotiates"
-    ,507: "Insufficient Storage"
-    ,508: "Loop Detected"
-    ,509: "Bandwidth Limit Exceeded"
-    ,510: "Not Extended"
-    ,511: "Network Authentication Required"
-    ,520: "Origin Error"
-    ,521: "Web server is down"
-    ,522: "Connection timed out"
-    ,523: "Proxy Declined Request"
-    ,524: "A timeout occurred"
-    ,598: "Network read timeout error"
-    ,599: "Network connect timeout error"
-    }
 
     uriParser = {
     'php': re.compile(r'^(?:([^:\/?#]+):)?(?:\/\/()(?:(?:()(?:([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?))?()(?:(()(?:(?:[^?#\/]*\/)*)()(?:[^?#]*))(?:\?([^#]*))?(?:#(.*))?)'),
@@ -434,7 +341,7 @@ def makeRoute(delims, patterns, route, method = None, prefix = None):
 
             # http://abc.org/{%ALFA%:user}{/%NUM%:?id(1)}
             p = part.split(delims[4])
-            if not len(p[0]):
+            if not len(p[0].strip()):
                 # http://abc.org/{:user}/{:?id}
                 # assume pattern is %PART%
                 p[0] = delims[2] + 'PART' + delims[3]
@@ -545,6 +452,8 @@ def type_to_array(v):
 def type_to_params(v):
     return Dromeo.unglue_params(v) if isinstance(v, str) else v
 
+class DromeoException(Exception):
+    pass
 
 class Route:
 
@@ -621,55 +530,56 @@ class Route:
                     if tpli['optional']:
                         continue
                     else:
-                        raise RuntimeError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") missing parameter "'+tpli['name']+'"!')
+                        raise DromeoException('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") missing parameter "'+tpli['name']+'"!')
                 else:
-                    param = str(params[tpli['name']])
-                    if strict and not re.search(tpli['re'], param):
-                        raise RuntimeError('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") parameter "'+tpli['name']+'" value "'+param+'" does not match pattern!')
+                    param = params[tpli['name']]
+                    if not isinstance(param, (list,tuple)): param = [param]
+                    param = list(map(lambda p: str(p), param))
+                    if strict and not re.search(tpli['re'], param[0]):
+                        raise DromeoException('Dromeo: Route "'+self.name+'" (Pattern: "'+self.route+'") parameter "'+tpli['name']+'" value "'+param[0]+'" does not match pattern!')
                     part = tpli['tpl']
                     j = 0
                     k = len(part)
+                    p = 0
                     while j < k:
-                        out += param if part[j] is True else part[j]
+                        if part[j] is True:
+                            out += (param[p] if p < len(param) else param[0])
+                            p += 1
+                        else:
+                            out += part[j]
                         j += 1
         return out
 
-    def sub(self, match, data, type = None, originalInput = None, originalKey = None):
+    def sub(self, match, data, type = None, getter = None):
         if (not self.isParsed) or self.literal: return self
 
         givenInput = match.group(0)
-        isDifferentInput = isinstance(originalInput, str) and (originalInput != givenInput)
-        hasOriginal = isinstance(originalKey, str)
-        odata = {} if hasOriginal else None
+        hasGetter = callable(getter)
         for v,g in self.captures.items():
             groupIndex = g[0]
             groupTypecaster = g[1]
             if match.group(groupIndex):
-                # if original input is given,
-                # get match from original input (eg with original case)
-                # else what matched
                 matchedValue = match.group(groupIndex)
-                matchedOriginalValue = originalInput[match.start(groupIndex):match.end(groupIndex)] if isDifferentInput else matchedValue
+                if hasGetter:
+                    # if getter is given,
+                    # get true match from getter (eg with original case)
+                    matchedValueTrue = str(getter(v, matchedValue, match.start(groupIndex), match.end(groupIndex), givenInput))
+                else:
+                    # else what matched
+                    matchedValueTrue = matchedValue
 
                 if type and (v in type) and type[v]:
                     typecaster = type[v]
                     if isinstance(typecaster,str) and (typecaster in Dromeo.TYPES):
                         typecaster = Dromeo.TYPES[typecaster]
-                    data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
-                    if hasOriginal: odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
+                    data[v] = typecaster(matchedValueTrue) if callable(typecaster) else matchedValueTrue
                 elif groupTypecaster:
                     typecaster = groupTypecaster
-                    data[v] = typecaster(matchedValue) if callable(typecaster) else matchedValue
-                    if hasOriginal: odata[v] = typecaster(matchedOriginalValue) if callable(typecaster) else matchedOriginalValue
+                    data[v] = typecaster(matchedValueTrue) if callable(typecaster) else matchedValueTrue
                 else:
-                    data[v] = matchedValue
-                    if hasOriginal: odata[v] = matchedOriginalValue
+                    data[v] = matchedValueTrue
             elif v not in data:
                 data[v] = None
-                if hasOriginal: odata[v] = None
-            elif hasOriginal:
-                odata[v] = data[v]
-        if hasOriginal: data[str(originalKey)] = odata
         return self
 
 class Dromeo:
@@ -678,10 +588,10 @@ class Dromeo:
     https://github.com/foo123/Dromeo
     """
 
-    VERSION = "1.2.0"
-    HTTP_STATUS = _G.HTTP_STATUS
+    VERSION = "1.3.0"
 
     Route = Route
+    Exception = DromeoException
     to_method = to_method
 
     TYPES = {
@@ -765,7 +675,7 @@ class Dromeo:
         self._named_routes = {}
         self._fallback = False
         self._top = top if isinstance(top, Dromeo) else self
-        self.key = '' if self == self._top else self._top.key + str(group)
+        self.key = '' if self == self._top else (self._top.key + str(group))
         self._prefix = '' if prefix is None else str(prefix)
 
 
@@ -853,23 +763,6 @@ class Dromeo:
     # build a url from baseUrl plus query/hash params
     def build(self, baseUrl, query = None, hash = None, q = '?', h = '#'):
         return Dromeo.build_components(baseUrl, query, hash, q, h)
-
-
-    def redirect(self, url, httpHandler, statusCode = 302, statusMsg = True):
-        #global _G
-        # redirection based on python HttpServer
-        # https://docs.python.org/3/library/http.server.html, https://wiki.python.org/moin/BaseHttpServer
-        if url and httpHandler:
-            if statusMsg:
-                if True == statusMsg:
-                    if statusCode in Dromeo.HTTP_STATUS: statusMsg = Dromeo.HTTP_STATUS[statusCode]
-                    else: statusMsg = ''
-                httpHandler.send_response(statusCode, statusMsg)
-            else:
-                httpHandler.send_response(statusCode)
-            httpHandler.send_header("Location", url)
-            httpHandler.end_headers()
-        return self
 
 
     def onGroup(self, groupRoute, handler):
@@ -1006,7 +899,7 @@ class Dromeo:
     def make(self, named_route, params = dict(), strict = False):
         return self._named_routes[named_route].make(params, strict) if named_route in self._named_routes else None
 
-    def route(self, r, method = "*", breakOnFirstMatch = True, originalR = None, originalKey = None):
+    def route(self, r, method = "*", breakOnFirstMatch = True, getter = None):
         if (not self.isTop()) and (not len(self._routes)): return False
         proceed = True
         found = False
@@ -1023,7 +916,7 @@ class Dromeo:
 
                 if isinstance(route, Dromeo):
                     # group router
-                    match = route.route(r, method, breakOnFirstMatch, originalR, originalKey)
+                    match = route.route(r, method, breakOnFirstMatch, getter)
                     if not match: continue
                     found = True
                 else:
@@ -1053,8 +946,7 @@ class Dromeo:
                             'fallback': False,
                             'data': copy.deepcopy(defaults)
                         }
-                        if isinstance(originalR, str): params['route_original'] = originalR
-                        route.sub(match, params['data'], type, originalR, originalKey)
+                        route.sub(match, params['data'], type, getter)
 
                         handler[4] = 1 # handler called
                         if handler[3]: to_remove.insert(0, h)
