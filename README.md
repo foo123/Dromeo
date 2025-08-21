@@ -74,8 +74,6 @@ see `/test` folder
 
 **Methods:**
 
-* `Dromeo` is also a `XPCOM JavaScript Component` (Firefox) (e.g to be used in firefox browser addons/plugins)
-
 ```javascript
 
 // -- instance methods --
@@ -96,10 +94,12 @@ router.defineDelimiters(['{', '}', '%', '%', ':']);
 // NUMBR =>   "[0-9]+"                   numeric only
 // INT   =>   "[0-9]+"                   integer with associated optional typecaster
 // ALNUM =>   "[a-zA-Z0-9\\-_]+"         alpha-numeric only
+// ASCII =>   "[ -~]+"                   printable ascii chars only
 // QUERY =>   "\\?[^?#]+"                query part with leading '?'
 // FRAGMENT =>"#[^?#]+"                  hash/fragment part with leading '#'
 // PART  =>   "[^\\/?#]+"                arbitrary path part (between /../)
 // ALL   =>   ".+"                       arbitrary sequence
+// ANY   =>   "[\\s\\S]+"                any char sequence
 router.definePattern(className, subPattern [, typecaster = null]);
 
 // unset/remove the sub-pattern "clasName"
@@ -187,7 +187,7 @@ var component = router.glue(params);
 // match and route a given url
 // (with optional method, only routes which match the method will be used),
 // returns true if matched any routePattern else false
-var matched = router.route(url, method="*", breakOnFirstMatch=true, originalUrl=null, originalKey=null);
+var matched = router.route(url, method="*", breakOnFirstMatch=true, getterFunction=null);
 
 ```
 
@@ -197,6 +197,6 @@ var matched = router.route(url, method="*", breakOnFirstMatch=true, originalUrl=
 * add support for extra passed defaults [DONE]
 * add support for (optional) type-casting of matched parameters [DONE]
 * add support for making string (URI) from route pattern with given parameters [DONE]
-* add support for extracting original matches if originalInput (if passed), eg with original case, is different than givenInput [DONE]
+* add support for getting original matches if `getter` function is given, eg with original case [DONE]
 * add support for subgroup of routes under common prefix (ie. `onGroup()`) [DONE]
 * add support for [RFC 6570 URI Template specification](http://tools.ietf.org/html/rfc6570) (TODO?)
