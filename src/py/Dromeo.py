@@ -663,6 +663,7 @@ class Dromeo:
         self._patterns = {}
         self.definePattern('ALPHA',      '[a-zA-Z\\-_]+')
         self.definePattern('ALNUM',      '[a-zA-Z0-9\\-_]+')
+        self.definePattern('ASCII',      '[ -~]+')
         self.definePattern('NUMBR',      '[0-9]+')
         self.definePattern('INT',        '[0-9]+',          'INT')
         self.definePattern('PART',       '[^\\/?#]+')
@@ -671,6 +672,7 @@ class Dromeo:
         self.definePattern('FRAGMENT',   '#[^?#]+')
         self.definePattern('URLENCODED', '[^\\/?#]+',       'URLENCODED')
         self.definePattern('ALL',        '.+')
+        self.definePattern('ANY',        '[\\s\\S]+')
         self._routes = []
         self._named_routes = {}
         self._fallback = False

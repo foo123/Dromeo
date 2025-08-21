@@ -53,8 +53,15 @@ function make(route, params, strict)
     var out;
     try {
         out = router.make(route, params, strict);
-    } catch (err) {
-        out = err.message;
+    } catch (e) {
+        if (e instanceof Dromeo.Exception)
+        {
+            out = e.message;
+        }
+        else
+        {
+            throw e;
+        }
     }
     return out;
 }

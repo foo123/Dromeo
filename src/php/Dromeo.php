@@ -337,6 +337,7 @@ class Dromeo
         $this->_patterns = array();
         $this->definePattern('ALPHA',      '[a-zA-Z\\-_]+');
         $this->definePattern('ALNUM',      '[a-zA-Z0-9\\-_]+');
+        $this->definePattern('ASCII',      '[ -~]+');
         $this->definePattern('NUMBR',      '[0-9]+');
         $this->definePattern('INT',        '[0-9]+',          'INT');
         $this->definePattern('PART',       '[^\\/?#]+');
@@ -345,6 +346,7 @@ class Dromeo
         $this->definePattern('FRAGMENT',   '#[^?#]+');
         $this->definePattern('URLENCODED', '[^\\/?#]+',       'URLENCODED');
         $this->definePattern('ALL',        '.+');
+        $this->definePattern('ANY',        '[\\s\\S]+');
         $this->_routes = array();
         $this->_named_routes = array();
         $this->_fallback = false;
