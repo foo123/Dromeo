@@ -103,7 +103,7 @@ class _G:
     uriComponent = ['source', 'scheme', 'authority', 'userInfo', 'user', 'pass', 'host', 'port',
         'relative', 'path', 'directory', 'file', 'query', 'fragment']
 
-    patternOr = re.compile(r'^([^|]+\|.+)$')
+    patternOr = re.compile(r'^([^|]+(\|[^|]+)+)$')
     nested = re.compile(r'\[([^\]]*?)\]$')
     group = re.compile(r'\((\d+)\)$')
     digit = re.compile(r'^\d+$')
@@ -555,7 +555,11 @@ class Route:
 
         givenInput = match.group(0)
         hasGetter = callable(getter)
-        for v,g in self.captures.items():
+        captures = []
+        for v,g in self.captures.items(): captures.append((v, g))
+        captures = sorted(captures, key=lambda e: match.start(e[1][0]), reverse=False)
+        for cap in captures:
+            v, g = cap
             groupIndex = g[0]
             groupTypecaster = g[1]
             if match.group(groupIndex):

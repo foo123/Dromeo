@@ -25,7 +25,7 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
 
 var __version__ = "1.3.0",
 
-    _patternOr = /^([^|]+\|.+)$/,
+    _patternOr = /^([^|]+(\|[^|]+)+)$/,
     _nested = /\[([^\]]*?)\]$/,
     _group = /\((\d+)\)$/,
     trim_re = /^\s+|\s+$/g,
@@ -247,7 +247,7 @@ function parse_str(str)
             }
         }
     }
-    for(i=possibleLists.length-1; i>=0; --i)
+    for (i=possibleLists.length-1; i>=0; --i)
     {
         // safe to pass multiple times same obj, it is possible
         obj = possibleLists[i].key ? possibleLists[i].obj[possibleLists[i].key] : possibleLists[i].obj;
@@ -814,19 +814,28 @@ Route[PROTO] = {
     },
 
     sub: function(match, data, type, getter) {
-        var self = this, v, g, i,
+        var self = this, v, g, index, i, n,
             groupIndex, groupTypecaster, groupMatchIndex,
-            givenInput, isDifferentInput, hasGetter,
+            givenInput, isDifferentInput, hasGetter, captures,
             matchedValue, matchedValueTrue, typecaster;
 
         if (!self.isParsed || self.literal) return self;
 
         givenInput = match[0];
         hasGetter = is_callable(getter);
+        captures = [];
         for (v in self.captures)
         {
             if (!HAS.call(self.captures, v)) continue;
             g = self.captures[v];
+            captures.push([v, g]);
+        }
+        captures.sort(function(a, b) {
+            return a[1][2](match)-b[1][2](match);
+        });
+        for (i=0,n=captures.length; i<n; ++i)
+        {
+            v = captures[i][0]; g = captures[i][1];
             groupIndex = g[0];
             groupTypecaster = g[1];
             groupMatchIndex = g[2];
@@ -837,8 +846,8 @@ Route[PROTO] = {
                 {
                     // if getter is given,
                     // get true match from getter (eg with original case)
-                    i = groupMatchIndex(match); // match index
-                    matchedValueTrue = String(getter(v, matchedValue, i, i+matchedValue.length, givenInput));
+                    index = groupMatchIndex(match); // match index
+                    matchedValueTrue = String(getter(v, matchedValue, index, index+matchedValue.length, givenInput));
                 }
                 else
                 {
