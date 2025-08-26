@@ -25,6 +25,10 @@ else if (!(name in root)) /* Browser/WebWorker/.. */
 
 var __version__ = "1.3.0",
 
+    PROTO = 'prototype', OP = Object[PROTO], AP = Array[PROTO], FP = Function[PROTO],
+    toString = OP.toString, HAS = OP.hasOwnProperty,
+    isNode = ('undefined' !== typeof global) && ('[object global]' == toString.call(global)),
+
     _patternOr = /^([^|]+(\|[^|]+)+)$/,
     _nested = /\[([^\]]*?)\]$/,
     _group = /\((\d+)\)$/,
@@ -32,21 +36,9 @@ var __version__ = "1.3.0",
     re_escape = /([*+\[\]\(\)?^$\/\\:.])/g,
 
     // auxilliaries
-    PROTO = 'prototype', OP = Object[PROTO], AP = Array[PROTO], FP = Function[PROTO],
-    toString = OP.toString, HAS = OP.hasOwnProperty,
-    isNode = ('undefined' !== typeof global) && ('[object global]' == toString.call(global)),
     trim = String[PROTO].trim
         ? function(s) {return s.trim();}
-        : function(s) {return s.replace(trim_re, '');},
-
-    // adapted from https://github.com/kvz/phpjs
-    uriParser = {
-        php: /^(?:([^:\/?#]+):)?(?:\/\/()(?:(?:()(?:([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?))?()(?:(()(?:(?:[^?#\/]*\/)*)()(?:[^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
-        strict: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
-        loose: /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/\/?)?((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/ // Added one optional slash to post-scheme to catch file:/// (should restrict this)
-    },
-    uriComponent = ['source', 'scheme', 'authority', 'userInfo', 'user', 'pass', 'host', 'port',
-        'relative', 'path', 'directory', 'file', 'query', 'fragment']
+        : function(s) {return s.replace(trim_re, '');}
 ;
 
 function length(s)
@@ -77,6 +69,76 @@ function is_callable(o)
 {
     return "function" === typeof o;
 }
+function array_keys(o)
+{
+    if ('function' === typeof Object.keys) return Object.keys(o);
+    var v, k, l;
+    if (is_array(o))
+    {
+        v = new Array(l=o.length);
+        for (k=0; k<l; ++k)
+        {
+            v[k] = String(k);
+        }
+    }
+    else
+    {
+        v = [];
+        for (k in o)
+        {
+            if (HAS.call(o, k))
+                v.push(k);
+        }
+    }
+    return v;
+}
+function array_values(o)
+{
+    if (is_array(o)) return o;
+    if ('function' === typeof Object.values) return Object.values(o);
+    var v = [], k;
+    for (k in o)
+    {
+        if (HAS.call(o, k))
+            v.push(o[k]);
+    }
+    return v;
+}
+function is_numeric_array(o)
+{
+    if (is_array(o)) return true;
+    if (is_obj(o))
+    {
+        var k = array_keys(o), i, l = k.length;
+        for (i=0; i<l; ++i)
+        {
+            if (i !== +k[i]) return false;
+        }
+        return true;
+    }
+    return false;
+}
+function in_array(v, a, strict)
+{
+    var i, l = a.length;
+    if (true === strict)
+    {
+        // Array.indexOf uses strict equality
+        return (0 < l) && (-1 !== a.indexOf(v));
+        /*for(i=0; i<l; i++)
+            if ( v===a[i] )
+                return true;*/
+    }
+    else
+    {
+        for (i=0; i<l; ++i)
+        {
+            if (v == a[i])
+                return true;
+        }
+    }
+    return false;
+}
 function extend(o1, o2, deep)
 {
     var k, v;
@@ -95,34 +157,6 @@ function extend(o1, o2, deep)
         }
     }
     return o1;
-}
-function parse_url(s, component, mode/*, queryKey*/)
-{
-    var m = uriParser[mode || 'php'].exec(s),
-        uri = {}, i = 14//, parser, name
-    ;
-    while (i--)
-    {
-        if (m[i])  uri[uriComponent[i]] = m[i]
-    }
-    if (HAS.call(uri, 'port')) uri['port'] = parseInt(uri['port'], 10);
-
-    if (component)
-    {
-        return uri[component.replace('PHP_URL_', '').toLowerCase()] || null;
-    }
-
-    /*if ( 'php' !== mode )
-    {
-        name = queryKey || 'queryKey';
-        parser = /(?:^|&)([^&=]*)=?([^&]*)/g;
-        uri[ name ] = { };
-        uri[ uriComponent[12] ].replace(parser, function ($0, $1, $2) {
-            if ($1) {uri[name][$1] = $2;}
-        });
-    }*/
-    if (uri.source) delete uri.source;
-    return uri;
 }
 function rawurldecode(str)
 {
@@ -147,8 +181,70 @@ function urlencode(str)
 {
     return rawurlencode(str).split('%20').join('+');
 }
+// adapted from https://github.com/kvz/phpjs
+var uriParser = {
+        php: /^(?:([^:\/?#]+):)?(?:\/\/()(?:(?:()(?:([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?))?()(?:(()(?:(?:[^?#\/]*\/)*)()(?:[^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
+        strict: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
+        loose: /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/\/?)?((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/ // Added one optional slash to post-scheme to catch file:/// (should restrict this)
+    },
+    uriComponent = ['source', 'scheme', 'authority', 'userInfo', 'user', 'pass', 'host', 'port', 'relative', 'path', 'directory', 'file', 'query', 'fragment']
+;
+function parse_url(str, component, mode)
+{
+    var uri = null, m, i;
+    if ('undefined' !== typeof(URL))
+    {
+        try {
+            m = new URL(str);
+        } catch (e) {
+            m = null;
+        }
+        if (m)
+        {
+            uri = {};
+            if (m.protocol) uri['scheme'] = m.protocol.slice(0, -1);
+            if (m.username) uri['user'] = m.username;
+            if (m.password) uri['pass'] = m.password;
+            if (m.hostname) uri['host'] = m.hostname;
+            if (m.port && m.port.length) uri['port'] = m.port;
+            if (m.pathname && m.pathname.length) uri['path'] = m.pathname;
+            else uri['path'] = '';
+            if (m.search && m.search.length) uri['query'] = m.search.slice(1);
+            else uri['query'] = '';
+            if (m.hash && m.hash.length) uri['fragment'] = m.hash.slice(1);
+            else uri['fragment'] = '';
+        }
+    }
+    if (!uri)
+    {
+        m = uriParser[mode || 'php'].exec(str);
+        i = uriComponent.length;
+        uri = {};
+        while (i--) if (i && m[i]) uri[uriComponent[i]] = m[i];
+    }
+    if (HAS.call(uri, 'port')) uri['port'] = parseInt(uri['port'], 10);
+
+    if (component)
+    {
+        return uri[component.replace('PHP_URL_', '').toLowerCase()] || null;
+    }
+
+    return uri;
+}
 function parse_str(str)
 {
+    /*if ('undefined' !== typeof(URLSearchParams))
+    {
+        // NOTE: nesting is not supported
+        var params;
+        try {
+            params = new URLSearchParams(str);
+        } catch (e) {
+            params = null;
+        }
+        if (params) return params;
+    }*/
+
     var strArr = str.replace(/^&+|&+$/g, '').split('&'),
         sal = strArr.length,
         i, j, ct, p, lastObj, obj, chr, tmp, key, value,
@@ -262,77 +358,22 @@ function parse_str(str)
     }
     return array;
 }
-function array_keys(o)
+function flatten(input, output, prefix)
 {
-    if ('function' === typeof Object.keys) return Object.keys(o);
-    var v, k, l;
-    if (is_array(o))
+    if (is_obj(input) || is_array(input))
     {
-        v = new Array(l=o.length);
-        for (k=0; k<l; ++k)
+        for (var k=array_keys(input),i=0,n=k.length; i<n; ++i)
         {
-            v[k] = String(k);
+            var key = k[i], val = input[key],
+                name = String((null == prefix) ? key : (prefix+'['+key+']'));
+
+            if (is_obj(val) || is_array(val)) output = flatten(val, output, name);
+            else output[name] = val;
         }
+        return output;
     }
-    else
-    {
-        v = [];
-        for (k in o)
-        {
-            if (HAS.call(o, k))
-                v.push(k);
-        }
-    }
-    return v;
+    return input;
 }
-function array_values(o)
-{
-    if (is_array(o)) return o;
-    if ('function' === typeof Object.values) return Object.values(o);
-    var v = [], k;
-    for (k in o)
-    {
-        if (HAS.call(o, k))
-            v.push(o[k]);
-    }
-    return v;
-}
-function is_numeric_array(o)
-{
-    if (is_array(o)) return true;
-    if (is_obj(o))
-    {
-        var k = array_keys(o), i, l = k.length;
-        for (i=0; i<l; ++i)
-        {
-            if (i !== +k[i]) return false;
-        }
-        return true;
-    }
-    return false;
-}
-function in_array(v, a, strict)
-{
-    var i, l = a.length;
-    if (true === strict)
-    {
-        // Array.indexOf uses strict equality
-        return (0 < l) && (-1 !== a.indexOf(v));
-        /*for(i=0; i<l; i++)
-            if ( v===a[i] )
-                return true;*/
-    }
-    else
-    {
-        for (i=0; i<l; ++i)
-        {
-            if (v == a[i])
-                return true;
-        }
-    }
-    return false;
-}
-// adapted from https://github.com/kvz/phpjs
 function http_build_query_helper(key, val, arg_separator, PHP_QUERY_RFC3986)
 {
     var k, tmp, encode = PHP_QUERY_RFC3986 ? rawurlencode : urlencode;
@@ -366,6 +407,23 @@ function http_build_query_helper(key, val, arg_separator, PHP_QUERY_RFC3986)
 }
 function http_build_query(data, arg_separator, PHP_QUERY_RFC3986)
 {
+    if ('undefined' !== typeof(URLSearchParams))
+    {
+        // NOTE: nesting is handled via flatten
+        var params;
+        try {
+            params = new URLSearchParams(flatten(data, {}));
+        } catch (e) {
+            params = null;
+        }
+        if (params)
+        {
+            params = params.toString();
+            if ('&' !== arg_separator) params = params.split('&').join(arg_separator);
+            return params;
+        }
+    }
+
     var value, key, query, tmp = [];
 
     if (arguments.length < 2) arg_separator = "&";
