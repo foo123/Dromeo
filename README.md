@@ -1,13 +1,13 @@
 Dromeo
 ======
 
-A Simple and Flexible Pattern Routing Framework for PHP, JavaScript, Python
+Simple and versatile Pattern Routing Framework for PHP, JavaScript, Python
 
 
 ![Dromeo](/dromeo.jpg)
 
 
-Version: **1.3.0** in progress
+Version: **1.3.0**
 
 
 **Examples:**
@@ -60,7 +60,7 @@ see `/test` folder
 
 // optional route_prefix to be used in case all routes have a common prefix
 // so can define routes using only the part that differs (easier/shorter code)
-var router = new Dromeo(prefix='');
+var router = new Dromeo(prefix = '');
 
 // set/define delimiters used in route-patterns, see examples
 router.defineDelimiters(['{', '}', '%', '%', ':']);
@@ -142,9 +142,9 @@ router.[on|one](
 );
 
 // set a group of routes sharing common prefix
-router.onGroup(prefix, function(subRouter){
+router.onGroup(prefix, function(subRouter) {
     subRouter.on(/*..*/);
-    subRouter.onGroup(prefix2, function(subRouter2){/*..*/}); // can be nested
+    subRouter.onGroup(prefix2, function(subRouter2) {/*..*/}); // can be nested
     // ..
 });
 

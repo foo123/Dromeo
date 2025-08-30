@@ -27,7 +27,6 @@ var __version__ = "1.3.0",
 
     PROTO = 'prototype', OP = Object[PROTO], AP = Array[PROTO], FP = Function[PROTO],
     toString = OP.toString, HAS = OP.hasOwnProperty,
-    isNode = ('undefined' !== typeof global) && ('[object global]' == toString.call(global)),
 
     _patternOr = /^([^|]+(\|[^|]+)+)$/,
     _nested = /\[([^\]]*?)\]$/,
@@ -37,8 +36,8 @@ var __version__ = "1.3.0",
 
     // auxilliaries
     trim = String[PROTO].trim
-        ? function(s) {return s.trim();}
-        : function(s) {return s.replace(trim_re, '');}
+        ? function(s) {return String(s).trim();}
+        : function(s) {return String(s).replace(trim_re, '');}
 ;
 
 function length(s)
@@ -739,6 +738,7 @@ function clearRoute(self, key)
 function DromeoException(message)
 {
     Error.call(this, message);
+    this.message = message;
     this.name = 'DromeoException';
 }
 DromeoException[PROTO] = Object.create(Error[PROTO]);

@@ -58,7 +58,7 @@ if not _urllib:
 
 
 def array_keys(o):
-    if isinstance(o, (list,tuple)): return list(map(str, range(0,len(o))))
+    if isinstance(o, (list,tuple)): return list(map(str, range(0, len(o))))
     if isinstance(o, dict): return list(o.keys())
     return []
 
@@ -80,8 +80,8 @@ def array_values(o):
     return []
 
 def is_numeric_array(o):
-    if isinstance(o,(list,tuple)): return True
-    if isinstance(o,dict):
+    if isinstance(o, (list,tuple)): return True
+    if isinstance(o, dict):
         k = array_keys(o)
         i = 0
         l = len(k)
@@ -100,8 +100,7 @@ class _G:
     'loose': re.compile(r'^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/\/?)?((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)')
     }
 
-    uriComponent = ['source', 'scheme', 'authority', 'userInfo', 'user', 'pass', 'host', 'port',
-        'relative', 'path', 'directory', 'file', 'query', 'fragment']
+    uriComponent = ['source', 'scheme', 'authority', 'userInfo', 'user', 'pass', 'host', 'port', 'relative', 'path', 'directory', 'file', 'query', 'fragment']
 
     patternOr = re.compile(r'^([^|]+(\|[^|]+)+)$')
     nested = re.compile(r'\[([^\]]*?)\]$')
@@ -120,7 +119,7 @@ def parse_url(s, component = None, mode = 'php'):
 
     while i > 0:
         i -= 1
-        if m.group(i):  uri[_G.uriComponent[i]] = m.group(i)
+        if (0 < i) and m.group(i):  uri[_G.uriComponent[i]] = m.group(i)
 
     if 'port' in uri: uri['port'] = int(uri['port'], 10)
 
@@ -128,7 +127,6 @@ def parse_url(s, component = None, mode = 'php'):
         component = component.replace('PHP_URL_', '').lower()
         return uri[component] if component in uri else None
 
-    if 'source' in uri: del uri['source']
     return uri
 
 def parse_str(s):
